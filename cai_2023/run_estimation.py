@@ -33,10 +33,21 @@ def main():
     if args.inspect_only:
         report = {}
         for key, obj in tables.items():
-            report[key] = {"type":type(obj).__name__, "shape":list(obj.shape),
-                           "index_sample":[str(x) for x in list(obj.index[:5])] if hasattr(obj,"index") else [],
-                           "columns_sample":[str(x) for x in list(obj.columns[:8])] if hasattr(obj,"columns") else [],
-                           "dims":list(getattr(obj,"dims",[]))}
+            dims = list(getattr(obj, "dims", []))
+            coord_samples = {}
+            if hasattr(obj, "coords"):
+                coord_samples = {
+                    str(dim): [str(x) for x in list(obj.coords[dim].values[:8])]
+                    for dim in dims if dim in obj.coords
+                }
+            report[key] = {
+                "type": type(obj).__name__,
+                "shape": list(obj.shape),
+                "index_sample": [str(x) for x in list(obj.index[:5])] if hasattr(obj, "index") else [],
+                "columns_sample": [str(x) for x in list(obj.columns[:8])] if hasattr(obj, "columns") else [],
+                "dims": dims,
+                "coordinate_samples": coord_samples,
+            }
         (output / "icio_schema.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
         print(json.dumps(report, indent=2)); return
     flow, output_df, absorption_df = build_bilateral_flows(tables, cfg)
