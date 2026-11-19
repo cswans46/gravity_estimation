@@ -12,8 +12,8 @@ def load_agreements(path, settings, chunk_size=500_000):
     selected = [v for v in required.values() if v]
     if not all(required[k] for k in ("origin", "destination", "year")):
         raise ValueError("Configure origin_variable, destination_variable, and year_variable after schema inspection.")
-    if not selected:
-        raise ValueError("No agreement columns configured.")
+    if not (required["rta"] or required["tariff"]):
+        raise ValueError("Configure at least one RTA or tariff variable after inspecting the Stata schema.")
     chunks = []
     reader = pyreadstat.read_file_in_chunks(pyreadstat.read_dta, str(path),
                                              chunksize=chunk_size, usecols=selected)
