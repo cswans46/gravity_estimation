@@ -48,7 +48,7 @@ def estimate_by_industry(panel, settings):
                 results.append({"industry":industry,"estimator":"OLS","status":f"insufficient observations: {len(ols)}"})
         if settings.get("run_ppml", True):
             ppml = sample.dropna(subset=["F", "output", "absorption"] + terms + ["origin_year", "destination_year"]).copy()
-            ppml = ppml.loc[(ppml["output"] > 0) & (ppml["absorption"] > 0)]
+            negative_flows_excluded = int((ppml["F"] < 0).sum())\n            ppml = ppml.loc[(ppml["F"] >= 0) & (ppml["output"] > 0) & (ppml["absorption"] > 0)]
             if len(ppml) >= min_n:
                 ppml["log_exposure"] = np.log(ppml["output"] * ppml["absorption"])
                 try:
@@ -60,7 +60,7 @@ def estimate_by_industry(panel, settings):
                                         "term":str(row.name),
                                         "estimate":row.get("Estimate", row.get("estimate")),
                                         "std_error":row.get("Std. Error", row.get("std_error")),
-                                        "nobs":len(ppml),"zero_flows_included":int((ppml["F"]==0).sum()),"status":"ok"})
+                                        "nobs":len(ppml),"zero_flows_included":int((ppml["F"]==0).sum()),\n                                        "negative_flows_excluded":negative_flows_excluded,"status":"ok"})
                 except Exception as exc:
                     results.append({"industry":industry,"estimator":"PPML","term":None,"status":f"failed: {exc}"})
             else:
