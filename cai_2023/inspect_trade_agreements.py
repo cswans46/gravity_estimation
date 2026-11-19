@@ -15,13 +15,14 @@ def main():
     if not path.exists():
         raise FileNotFoundError(f"Stata file not found: {path}")
     _, meta = pyreadstat.read_dta(str(path), metadataonly=True)
+    sample, _ = pyreadstat.read_dta(str(path), row_limit=10)
     report = {
         "file": str(path), "row_count": meta.number_rows,
         "column_count": meta.number_columns,
         "columns": [{"name": name, "label": meta.column_names_to_labels.get(name, ""),
                      "type": str(meta.readstat_variable_types.get(name, ""))}
                     for name in meta.column_names],
-        "file_label": meta.file_label,
+        "file_label": meta.file_label,\n        "first_10_rows": sample.astype("string").fillna("").to_dict("records"),
     }
     out = resolve_path(cfg, cfg["paths"]["output_dir"])
     out.mkdir(parents=True, exist_ok=True)
