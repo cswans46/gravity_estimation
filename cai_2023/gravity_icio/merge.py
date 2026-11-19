@@ -37,7 +37,7 @@ def merge_controls(flow, config, paths, agreements=None):
         panel["language"] = pd.to_numeric(panel[lang], errors="coerce")
     else:
         panel["language"] = np.nan
-    panel["border"] = (panel["origin"] == panel["destination"]).astype(int)
+    panel["border"] = (panel["origin"] != panel["destination"]).astype(int)
     panel["log_distance"] = np.where(panel["distance"] > 0, np.log(panel["distance"]), np.nan)
     if agreements is not None:
         panel = panel.merge(agreements, on=["origin","destination","year"], how="left", indicator="_agreement_merge", validate="many_to_one")
