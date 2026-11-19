@@ -22,14 +22,16 @@ def main():
         "columns": [{"name": name, "label": meta.column_names_to_labels.get(name, ""),
                      "type": str(meta.readstat_variable_types.get(name, ""))}
                     for name in meta.column_names],
-        "file_label": meta.file_label,\n        "first_10_rows": sample.astype("string").fillna("").to_dict("records"),
+        "file_label": meta.file_label,
+        "first_10_rows": sample.astype("string").fillna("").to_dict("records"),
     }
     out = resolve_path(cfg, cfg["paths"]["output_dir"])
     out.mkdir(parents=True, exist_ok=True)
     target = out / "trade_agreement_schema.json"
     target.write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(json.dumps(report, indent=2))
-    print(f"\nSchema report written to: {target}")
+    print(f"
+Schema report written to: {target}")
 
 
 if __name__ == "__main__":
