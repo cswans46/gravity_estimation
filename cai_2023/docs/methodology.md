@@ -157,6 +157,11 @@ loaded. The report should be used to identify:
 - bilateral tariff measure and its unit (fraction, percent, or ad valorem rate).
 
 The raw file may contain multiple agreements, products, or tariff lines per pair-year.
+If the source has industry-specific tariffs, configure `industry_variable`; the merge then
+uses origin, destination, year, and industry. Its industry codes must match the ICIO
+industry codes or be converted through an explicit concordance before aggregation.
+Without an industry field, the pair-year policy measure is applied to every supplying
+industry, which is appropriate only for genuinely economy-wide bilateral controls.
 Aggregation must reflect the meaning of the data. The configured default is maximum
 for a binary RTA indicator and mean for tariffs, but these are not universally correct.
 The analyst must confirm whether tariffs are weighted, product-specific, preferential,
