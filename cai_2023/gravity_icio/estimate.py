@@ -26,8 +26,6 @@ def estimate_by_industry(panel, settings):
         terms = _model_terms(sample, settings)
         fe = "origin_year + destination_year"
         min_n = int(settings.get("min_observations", 30))
-        base_cols = ["F", "z", "output", "absorption", "log_distance", "origin_year", "destination_year", "pair"]
-        base_cols += [x for x in ("border", "language", "rta", "tariff") if x in sample]
         if settings.get("run_ols", True):
             ols = sample.dropna(subset=["z"] + terms + ["origin_year", "destination_year"]).copy()
             ols = ols.loc[ols["z"] > 0]
@@ -48,7 +46,8 @@ def estimate_by_industry(panel, settings):
                 results.append({"industry":industry,"estimator":"OLS","status":f"insufficient observations: {len(ols)}"})
         if settings.get("run_ppml", True):
             ppml = sample.dropna(subset=["F", "output", "absorption"] + terms + ["origin_year", "destination_year"]).copy()
-            negative_flows_excluded = int((ppml["F"] < 0).sum())\n            ppml = ppml.loc[(ppml["F"] >= 0) & (ppml["output"] > 0) & (ppml["absorption"] > 0)]
+            negative_flows_excluded = int((ppml["F"] < 0).sum())
+            ppml = ppml.loc[(ppml["F"] >= 0) & (ppml["output"] > 0) & (ppml["absorption"] > 0)]
             if len(ppml) >= min_n:
                 ppml["log_exposure"] = np.log(ppml["output"] * ppml["absorption"])
                 try:
@@ -60,7 +59,8 @@ def estimate_by_industry(panel, settings):
                                         "term":str(row.name),
                                         "estimate":row.get("Estimate", row.get("estimate")),
                                         "std_error":row.get("Std. Error", row.get("std_error")),
-                                        "nobs":len(ppml),"zero_flows_included":int((ppml["F"]==0).sum()),\n                                        "negative_flows_excluded":negative_flows_excluded,"status":"ok"})
+                                        "nobs":len(ppml),"zero_flows_included":int((ppml["F"]==0).sum()),
+                                        "negative_flows_excluded":negative_flows_excluded,"status":"ok"})
                 except Exception as exc:
                     results.append({"industry":industry,"estimator":"PPML","term":None,"status":f"failed: {exc}"})
             else:
