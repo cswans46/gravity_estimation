@@ -31,6 +31,7 @@ agreements:
   origin_variable: null
   destination_variable: null
   year_variable: null
+  industry_variable: null  # set when RTA/tariff observations are industry-specific
   rta_variable: null
   tariff_variable: null
   # If the Stata file is agreement-level rather than pair-year-level, set the
