@@ -65,10 +65,10 @@ For each supplying industry \(k\), the log-linear benchmark is:
 \]
 
 Here \(\theta_k\) is the industry-specific distance elasticity. \(d_{ij}\) is the CEPII
-population-weighted distance measure (normally \`distwces\`). Border is one for
-international pairs and zero for domestic pairs. Common official language is a bilateral
-control. Domestic and international flows are both included; domestic observations
-provide border variation and the distance measure must be positive for domestic pairs.
+population-weighted distance measure (normally \`distwces\`). Border is one for domestic pairs (origin equals destination) and zero for international
+pairs. Common official language is a bilateral control. Domestic and international flows
+are both included; domestic observations provide border variation and the distance
+measure must be positive for domestic pairs.
 
 The proposed extension adds agreement and tariff variables:
 
