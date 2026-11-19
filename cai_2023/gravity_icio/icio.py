@@ -96,7 +96,9 @@ def build_bilateral_flows(tables, config):
     fdvalues = FD.to_numpy() if hasattr(FD, "to_numpy") else np.asarray(FD.values)
     # OECD final demand may be category-resolved (country x final-demand category)
     # or already aggregated to destination country. Refuse to infer category layout.
-    fdcols = list(FD.columns) if isinstance(FD, pd.DataFrame) else list(FD.coords[FD.dims[2]].values)\n    if fdcols != countries:\n        raise ValueError("FD destination-country coordinates do not match the Z country order.")
+    fdcols = list(FD.columns) if isinstance(FD, pd.DataFrame) else list(FD.coords[FD.dims[2]].values)
+    if fdcols != countries:
+        raise ValueError("FD destination-country coordinates do not match the Z country order.")
     if len(fdcols) == nc:
         if fdvalues.shape != (nt, nc * nk, nc):
             raise ValueError(f"FD shape {fdvalues.shape} inconsistent with destination-country columns")
