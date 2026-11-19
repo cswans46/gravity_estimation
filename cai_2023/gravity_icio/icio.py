@@ -96,8 +96,8 @@ def build_bilateral_flows(tables, config):
     if len(keep) != nc:
         F, output = F[:, keep, :, :][:, :, :, keep], output[:, keep, :]
         countries = [countries[i] for i in keep]
-    absorption = F.sum(axis=1).transpose(0, 2, 1)  # (t, industry, destination)
-    denom = output[:, :, :, None] * absorption[:, None, :, :]
+    absorption = F.sum(axis=1)  # (t, industry, destination)
+    year_range = config["icio"].get("years")\n    if year_range:\n        start_year, end_year = year_range\n        year_mask = np.array([start_year <= int(y) <= end_year for y in years])\n        F, output, absorption = F[year_mask], output[year_mask], absorption[year_mask]\n        years = [y for y, keep_year in zip(years, year_mask) if keep_year]\n        nt = len(years)\n    denom = output[:, :, :, None] * absorption[:, None, :, :]
     with np.errstate(divide="ignore", invalid="ignore"):
         normalized = np.divide(F, denom, out=np.full_like(F, np.nan, dtype=float), where=denom > 0)
 
