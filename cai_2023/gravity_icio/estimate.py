@@ -38,7 +38,7 @@ def estimate_by_industry(panel, settings):
                                    vcov={"CRV1": "pair"})
                     tidy = fit.tidy()
                     for _, row in tidy.iterrows():
-                        results.append({"industry": industry, "estimator":"OLS", "term":row.get("Coefficient", row.get("term")),
+                        results.append({"industry": industry, "estimator":"OLS", "term":str(row.name),
                                         "estimate":row.get("Estimate", row.get("estimate")),
                                         "std_error":row.get("Std. Error", row.get("std_error")),
                                         "nobs":len(ols), "zero_flows_excluded":int((sample["F"]==0).sum()), "status":"ok"})
@@ -57,7 +57,7 @@ def estimate_by_industry(panel, settings):
                     tidy = fit.tidy()
                     for _, row in tidy.iterrows():
                         results.append({"industry":industry,"estimator":"PPML",
-                                        "term":row.get("Coefficient", row.get("term")),
+                                        "term":str(row.name),
                                         "estimate":row.get("Estimate", row.get("estimate")),
                                         "std_error":row.get("Std. Error", row.get("std_error")),
                                         "nobs":len(ppml),"zero_flows_included":int((ppml["F"]==0).sum()),"status":"ok"})
