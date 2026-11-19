@@ -27,6 +27,22 @@ def load_agreements(path, settings, chunk_size=500_000):
     if not chunks:
         raise ValueError("No observations read from the Stata file.")
     raw = pd.concat(chunks, ignore_index=True)
+    if "rta" in raw:
+        numeric_rta = pd.to_numeric(raw["rta"], errors="coerce")
+        if numeric_rta.notna().sum() == raw["rta"].notna().sum():
+            raw["rta"] = numeric_rta
+        else:
+            labels = raw["rta"].astype("string").str.strip().str.lower()
+            mapping = {
+                "1": 1, "true": 1, "yes": 1, "y": 1, "in force": 1,
+                "0": 0, "false": 0, "no": 0, "n": 0, "not in force": 0,
+            }
+            raw["rta"] = labels.map(mapping)
+            if raw["rta"].isna().any() and labels.notna().any():
+                unknown = sorted(labels[raw["rta"].isna()].dropna().unique().tolist())
+                raise ValueError(f"Unrecognized RTA indicator labels {unknown}; recode the variable explicitly.")
+    if "tariff" in raw:
+        raw["tariff"] = pd.to_numeric(raw["tariff"], errors="coerce")
     aggregations = {}
     if "rta" in raw:
         aggregations["rta"] = settings.get("rta_aggregation", "max")
