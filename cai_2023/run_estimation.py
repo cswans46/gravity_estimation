@@ -54,7 +54,7 @@ def main():
     flow.to_parquet(output / "bilateral_industry_flows.parquet", index=False)
     aggregation = {
         "observations": ("F", "size"),
-        "zero_flows": ("F", lambda x: int((x == 0).sum())),
+        "zero_flows": ("F", lambda x: int((x == 0).sum())),\n        "negative_flows": ("F", lambda x: int((x < 0).sum())),
         "positive_flows": ("F", lambda x: int((x > 0).sum())),
         "distance_missing": ("distance", lambda x: int(x.isna().sum())),
         "cepii_unmatched": ("_cepii_merge", lambda x: int((x != "both").sum())),
