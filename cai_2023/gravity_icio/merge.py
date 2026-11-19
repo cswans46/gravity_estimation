@@ -40,5 +40,8 @@ def merge_controls(flow, config, paths, agreements=None):
     panel["border"] = (panel["origin"] != panel["destination"]).astype(int)
     panel["log_distance"] = np.where(panel["distance"] > 0, np.log(panel["distance"]), np.nan)
     if agreements is not None:
-        panel = panel.merge(agreements, on=["origin","destination","year"], how="left", indicator="_agreement_merge", validate="many_to_one")
+        agreement_keys = ["origin", "destination", "year"]
+        if "industry" in agreements.columns:
+            agreement_keys.append("industry")
+        panel = panel.merge(agreements, on=agreement_keys, how="left", indicator="_agreement_merge", validate="many_to_one")
     return panel
