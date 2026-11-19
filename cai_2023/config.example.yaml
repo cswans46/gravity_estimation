@@ -1,0 +1,61 @@
+# Copy to config.yaml and edit paths / column mappings for your local data.
+paths:
+  icio_dir: "D:/Models/OECD Research"
+  cepii_dir: "data/raw/cepii"
+  rta_dta: "D:/Research/Esmaeil Research/cai_2023/rta_individual_agreements_20260111.dta"
+  output_dir: "results"
+  log_dir: "logs"
+
+icio:
+  years: [1995, 2022]
+  exclude_countries: ["ROW"]
+  # RData object names; leave null to use the first object in each file.
+  objects: {Z: null, X: null, FD: null}
+  file_pattern: "ICIO2025econ{table}.Rdata"
+  # Existing prototype expects the ICIO row labels to be COUNTRY_INDUSTRY.
+  # If the actual files use a different layout, inspect the generated schema report
+  # and set the parser options in config.yaml before estimation.
+  country_industry_separator: "_"
+  expected_industries: 50
+
+cepii:
+  distance_file: "dist_cepii.xls"
+  geography_file: "geo_cepii.xlsx"
+  distance_variable: "distwces"
+  origin_variable: "iso_o"
+  destination_variable: "iso_d"
+  language_variable: "comlang_off"
+
+agreements:
+  # Variable names are deliberately configurable: the DTA schema is inspected first.
+  origin_variable: null
+  destination_variable: null
+  year_variable: null
+  industry_variable: null  # set when RTA/tariff observations are industry-specific
+  rta_variable: null
+  tariff_variable: null
+  # If the Stata file is agreement-level rather than pair-year-level, set the
+  # agreement indicator and tariff aggregation rules after inspecting its schema.
+  rta_aggregation: "max"
+  tariff_aggregation: "mean"
+  chunk_size: 500000
+
+estimation:
+  sectors: "all"
+  # Cai's log-linear normalized-flow regression is the benchmark.
+  run_ols: true
+  # PPML extension estimates flows with log(output * destination absorption) as offset.
+  run_ppml: true
+  include_border: true
+  include_language: true
+  include_rta: true
+  include_tariff: true
+  cluster: "pair"
+  min_observations: 30
+  # Restrict to years after the trade-agreement data begins only if explicitly desired.
+  require_complete_agreement_data: false
+  # Keep zero flows for PPML; OLS necessarily uses positive flows only.
+  keep_domestic_flows: true
+
+logging:
+  level: "INFO"

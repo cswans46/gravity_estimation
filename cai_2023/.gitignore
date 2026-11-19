@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local configuration and credentials
+config.yaml
+.env
+
+# Raw and processed data (never commit research data)
+data/raw/
+data/processed/
+*.dta
+*.Rdata
+*.rdata
+*.parquet
+*.feather
+*.gdx
+*.db
+*.db-shm
+*.db-wal
+
+# Results and logs
+results/
+logs/
+*.log
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
