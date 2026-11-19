@@ -61,6 +61,25 @@ def build_bilateral_flows(tables, config):
     if row_pairs != expected:
         raise ValueError("ICIO labels are not country-major with a common industry ordering.")
     nt, nc, nk = len(years), len(countries), len(industries)
+    expected_industries = config["icio"].get("expected_industries")
+    if expected_industries is not None and nk != int(expected_industries):
+        raise ValueError(
+            f"Found {nk} ICIO industries; configuration expects {expected_industries}. "
+            "Check the row labels and whether aggregate rows are included."
+        )
+    if not isinstance(X, pd.DataFrame):
+        x_years = list(X.coords[X.dims[0]].values)
+        if x_years != years:
+            raise ValueError("X and Z year coordinates do not match.")
+        if len(X.dims) == 2:
+            x_labels = list(X.coords[X.dims[1]].values)
+            if x_labels != zrows:
+                raise ValueError("X country-industry labels do not match Z row labels.")
+    if not isinstance(FD, pd.DataFrame):
+        fd_years = list(FD.coords[FD.dims[0]].values)
+        fd_rows = list(FD.coords[FD.dims[1]].values)
+        if fd_years != years or fd_rows != zrows:
+            raise ValueError("FD year or country-industry coordinates do not match Z.")
     zvalues = Z.to_numpy() if isinstance(Z, pd.DataFrame) else np.asarray(Z.values)
     if zvalues.shape != (nt, nc * nk, nc * nk):
         raise ValueError(f"Unexpected Z shape {zvalues.shape}; expected {(nt, nc*nk, nc*nk)}")
@@ -77,7 +96,7 @@ def build_bilateral_flows(tables, config):
     fdvalues = FD.to_numpy() if hasattr(FD, "to_numpy") else np.asarray(FD.values)
     # OECD final demand may be category-resolved (country x final-demand category)
     # or already aggregated to destination country. Refuse to infer category layout.
-    fdcols = list(FD.columns) if isinstance(FD, pd.DataFrame) else list(FD.coords[FD.dims[2]].values)
+    fdcols = list(FD.columns) if isinstance(FD, pd.DataFrame) else list(FD.coords[FD.dims[2]].values)\n    if fdcols != countries:\n        raise ValueError("FD destination-country coordinates do not match the Z country order.")
     if len(fdcols) == nc:
         if fdvalues.shape != (nt, nc * nk, nc):
             raise ValueError(f"FD shape {fdvalues.shape} inconsistent with destination-country columns")
