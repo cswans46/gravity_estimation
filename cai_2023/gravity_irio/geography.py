@@ -7,8 +7,14 @@ NUTS-3 regions.) ``toroj_r_home`` reproduces that definition for any set of regi
 
   for every region r and every neighbour q of r:
       draw the straight segment from capital(r) to capital(q) (in a conformal map projection);
-      record the distance from capital(r) to the first crossing of r's boundary;
+      record the distance from capital(r) to r's border along it;
   r_home = mean of all recorded distances (pooled over all region-neighbour pairs).
+
+"Border" (``rule``): Statistics Canada's cartographic boundary file follows shorelines, so the
+first crossing of a coastal capital's own polygon is the water's edge (Quebec City -> St
+Lawrence 0.5 km, Victoria 0.7 km). The default rule='median' measures to where the line enters
+another region's land and, across a water gap, puts the border at the gap's midpoint (median
+line, as for maritime boundaries). rule='first_exit' gives the literal first crossing.
 
 Inputs: province polygons from Statistics Canada's boundary files (shapefile, EPSG:3347
 "NAD83 / Statistics Canada Lambert") or any GeoJSON in lon/lat. Pure-numpy readers are
@@ -132,12 +138,31 @@ def read_geojson(path, name_field):
 
 
 # --------------------------------------------------------------------------- geometry
+def point_in_polygon(pt, rings) -> bool:
+    """Even-odd rule over all rings (islands and holes) -- used to verify capitals lie inside."""
+    x, y = float(pt[0]), float(pt[1])
+    inside = False
+    for ring in rings:
+        if not (ring[:, 1].min() <= y <= ring[:, 1].max() and ring[:, 0].min() <= x):
+            continue
+        a, b = ring[:-1], ring[1:]
+        cond = (a[:, 1] > y) != (b[:, 1] > y)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            xint = a[:, 0] + (y - a[:, 1]) * (b[:, 0] - a[:, 0]) / (b[:, 1] - a[:, 1])
+        inside ^= bool(np.sum(cond & (x < xint)) % 2)
+    return inside
+
+
 def first_boundary_crossing(p0, p1, rings):
     """Distance from p0 to the first crossing of any ring edge along segment p0->p1 (None if none)."""
     p0, p1 = np.asarray(p0, float), np.asarray(p1, float)
     r = p1 - p0
     best = np.inf
+    lo, hi = np.minimum(p0, p1), np.maximum(p0, p1)
     for ring in rings:
+        if (ring[:, 0].max() < lo[0] or ring[:, 0].min() > hi[0]
+                or ring[:, 1].max() < lo[1] or ring[:, 1].min() > hi[1]):
+            continue  # ring's bounding box misses the segment's
         a = ring[:-1]
         s = ring[1:] - ring[:-1]
         den = r[0] * s[:, 1] - r[1] * s[:, 0]
@@ -151,7 +176,57 @@ def first_boundary_crossing(p0, p1, rings):
     return None if not np.isfinite(best) else best * float(np.hypot(*r))
 
 
-def toroj_r_home(polygons, capitals, neighbours, regions=None):
+def _crossings(p0, p1, rings):
+    """Sorted segment parameters t in (0,1] at which segment p0->p1 crosses any ring edge."""
+    p0, p1 = np.asarray(p0, float), np.asarray(p1, float)
+    r = p1 - p0
+    lo, hi = np.minimum(p0, p1), np.maximum(p0, p1)
+    ts = []
+    for ring in rings:
+        if (ring[:, 0].max() < lo[0] or ring[:, 0].min() > hi[0]
+                or ring[:, 1].max() < lo[1] or ring[:, 1].min() > hi[1]):
+            continue
+        a, sv = ring[:-1], ring[1:] - ring[:-1]
+        den = r[0] * sv[:, 1] - r[1] * sv[:, 0]
+        ok = np.abs(den) > 1e-12
+        qp = a - p0
+        dd = np.where(ok, den, 1)
+        t = (qp[:, 0] * sv[:, 1] - qp[:, 1] * sv[:, 0]) / dd
+        u = (qp[:, 0] * r[1] - qp[:, 1] * r[0]) / dd
+        hit = ok & (t > 1e-9) & (t <= 1) & (u >= 0) & (u <= 1)
+        ts.extend(t[hit].tolist())
+    return np.sort(np.asarray(ts))
+
+
+def border_distance(p0, p1, own, others, rule="median"):
+    """Distance from p0 (inside region ``own``) to the region's border along p0->p1.
+
+    rule='first_exit': first crossing of the region's own boundary. With coastline-following
+                       (cartographic) boundaries this is the water's edge for coastal capitals.
+    rule='median'    : the point where the line first enters *another* region's land; if the
+                       line leaves its own land and crosses water before that, the border is put
+                       at the midpoint of the water gap (median-line / equidistance principle
+                       used for maritime boundaries). Land borders: own exit = other entry.
+    Returns (km_from_p0, t_border, entered_region).
+    """
+    L = float(np.hypot(*(np.asarray(p1, float) - np.asarray(p0, float))))
+    t_own = _crossings(p0, p1, own)
+    if rule == "first_exit":
+        return (t_own[0] * L if len(t_own) else None), (t_own[0] if len(t_own) else None), None
+    t_in, who = np.inf, None
+    for name, rings in others.items():
+        tc = _crossings(p0, p1, rings)
+        if len(tc) and tc[0] < t_in:
+            t_in, who = float(tc[0]), name
+    if not np.isfinite(t_in):
+        return None, None, None
+    before = t_own[t_own <= t_in + 1e-12]
+    outside = len(before) % 2 == 1            # odd number of own crossings: we left own land
+    tb = 0.5 * (before[-1] + t_in) if outside else t_in
+    return tb * L, tb, who
+
+
+def toroj_r_home(polygons, capitals, neighbours, regions=None, rule: str = "median"):
     """Torój's within-region radius (km) and the per-pair table.
 
     polygons   : {region: [rings in EPSG:3347 metres]}
@@ -168,7 +243,8 @@ def toroj_r_home(polygons, capitals, neighbours, regions=None):
             if q not in regions:
                 continue
             c1 = np.array(lcc3347(*capitals[q]))
-            d = first_boundary_crossing(c0, c1, polygons[r])
+            others = {k: v for k, v in polygons.items() if k != r}
+            d, _, _ = border_distance(c0, c1, polygons[r], others, rule)
             rows.append((r, q, None if d is None else d / 1000.0))
     vals = [d for _, _, d in rows if d is not None]
     return float(np.mean(vals)), rows

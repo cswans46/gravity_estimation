@@ -153,3 +153,9 @@ cai_2023/data/
 # Shipped concordance tables
 !cai_2023/gravity_irio/data/*.csv
 !cai_2023/tests/fixtures/*.csv
+
+# Large geography inputs (keep locally)
+*.shp
+*.shx
+lpr_*.zip
+!cai_2023/docs/*.csv

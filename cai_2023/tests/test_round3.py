@@ -139,3 +139,27 @@ def test_shapefile_reader_accepts_zip(tmp_path):
         f.write(shp.with_suffix(".dbf"), "lpr_000b21a_e.dbf")
     polys = read_shapefile(z, "PRUID")
     assert list(polys) == ["35"] and polys["35"][0].shape == (5, 2)
+
+
+def test_naics2017_official_and_version_mixing():
+    from gravity_irio.concordance import DATA, load_official_naics_isic, validate_bridge, naics_to_icio, naics2017_to_2022
+    off17 = load_official_naics_isic(DATA / "statcan_naics2017_v3_isic4.csv")
+    assert off17["naics"].nunique() == 927
+    v = validate_bridge(off17)
+    assert not v["status"].isin(["disagree", "missing"]).any()
+    assert naics_to_icio("446110") == "G" and naics_to_icio("519130") == "J62_63"   # 2017-only codes
+    assert naics_to_icio("516219") == "J58T60"                                       # its 2022 successor
+    c = naics2017_to_2022()
+    assert {"naics2017", "naics2022", "change"} <= set(c.columns) and len(c) > 600
+
+
+def test_border_distance_median_rule_across_water():
+    from gravity_irio.geography import border_distance
+    sq = lambda x0, x1: [np.array([[x0, 0], [x1, 0], [x1, 10], [x0, 10], [x0, 0]], float)]
+    A, B = sq(0, 10), sq(14, 24)          # 4-unit water gap between x=10 and x=14
+    d_med, _, who = border_distance([5, 5], [20, 5], A, {"B": B}, "median")
+    d_lit, _, _ = border_distance([5, 5], [20, 5], A, {"B": B}, "first_exit")
+    assert np.isclose(d_med, 7.0) and who == "B" and np.isclose(d_lit, 5.0)
+    C = sq(10, 20)                        # shared land border: both rules agree
+    d_land, _, _ = border_distance([5, 5], [15, 5], A, {"C": C}, "median")
+    assert np.isclose(d_land, 5.0)

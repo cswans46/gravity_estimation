@@ -149,15 +149,25 @@ _OFFICIAL = None
 
 
 def load_official_table() -> pd.DataFrame:
-    """NAICS 2022 (6-digit) -> ICIO 2025 links derived from Statistics Canada's official
-    NAICS Canada 2022 V1.0 -> ISIC Rev.4 concordance (data/naics2022_to_icio2025_official.csv;
+    """NAICS (6-digit) -> ICIO 2025 links derived from Statistics Canada's official
+    NAICS Canada 2022 V1.0 and 2017 V3.0 -> ISIC Rev.4 concordances
+    (data/naics2022_to_icio2025_official.csv, data/naics2017_to_icio2025_official.csv;
+    column 'naics2022' holds the code of either version; 'version' says which;
     weight = share of the class's ISIC links in that ICIO industry; primary = main ICIO
     industry, see METHODS 7.2)."""
     global _OFFICIAL
     if _OFFICIAL is None:
-        f = DATA / "naics2022_to_icio2025_official.csv"
-        _OFFICIAL = pd.read_csv(f, dtype={"naics2022": str}) if f.exists() else pd.DataFrame(
-            columns=["naics2022", "icio2025", "n_isic_links", "weight", "primary"])
+        parts = []
+        for ver in ("2022", "2017"):  # 2022 first: it wins for the 831 codes present in both
+            f = DATA / f"naics{ver}_to_icio2025_official.csv"
+            if f.exists():
+                t = pd.read_csv(f, dtype={f"naics{ver}": str}).rename(columns={f"naics{ver}": "naics2022"})
+                parts.append(t.assign(version=ver))
+        _OFFICIAL = (pd.concat(parts, ignore_index=True) if parts else pd.DataFrame(
+            columns=["naics2022", "icio2025", "n_isic_links", "weight", "primary", "version"]))
+        # a code present in both versions keeps only its 2022 links (identical ICIO mapping, tested)
+        v22 = set(_OFFICIAL.loc[_OFFICIAL["version"] == "2022", "naics2022"])
+        _OFFICIAL = _OFFICIAL[(_OFFICIAL["version"] == "2022") | ~_OFFICIAL["naics2022"].isin(v22)]
     return _OFFICIAL
 
 
@@ -184,8 +194,8 @@ def naics_to_icio_weights(code, class_weights: dict, links: str = "primary") -> 
 
 
 def naics_to_icio(code, bridge: pd.DataFrame | None = None) -> str | None:
-    """Unique ICIO code for a NAICS code: the official primary link for 6-digit NAICS 2022
-    codes, otherwise the bridge (None if unmatched or ambiguous)."""
+    """Unique ICIO code for a NAICS code: the official primary link for 6-digit NAICS 2022 or
+    2017 codes, otherwise the bridge (None if unmatched or ambiguous)."""
     s = re.sub(r"[^0-9]", "", str(code))
     if len(s) == 6:
         off = load_official_table()
@@ -202,7 +212,16 @@ def load_official_naics_isic(path) -> pd.DataFrame:
     Column names vary across releases; the first column containing 'NAICS' and 'Code' and
     the first containing 'ISIC' and 'Code' are used. '*' (partial) flags are kept in 'partial'.
     """
-    df = pd.read_csv(path, dtype=str, encoding="utf-8-sig", encoding_errors="replace")
+    raw = Path(path).read_bytes()
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:  # the NAICS 2017 V3.0 file is Latin-1
+        text = raw.decode("latin-1")
+    lines = text.splitlines()
+    # skip title lines above the header (the 2017 file starts with a one-line title)
+    hdr = next(i for i, l in enumerate(lines) if "NAICS" in l.upper() and "CODE" in l.upper() and "ISIC" in l.upper())
+    import io
+    df = pd.read_csv(io.StringIO("\n".join(lines[hdr:])), dtype=str)
     ncol = next(c for c in df.columns if "NAICS" in c.upper() and "CODE" in c.upper())
     icol = next(c for c in df.columns if "ISIC" in c.upper() and "CODE" in c.upper())
     tcol = next((c for c in df.columns if "NAICS" in c.upper() and "TITLE" in c.upper()), None)
@@ -261,6 +280,15 @@ def validate_bridge(off: pd.DataFrame, bridge: pd.DataFrame | None = None) -> pd
         rows.append(dict(naics=n, bridge=br, primary=prim, all_official="|".join(allo),
                          primary_weight=float(g.loc[g["primary"], "weight"].iloc[0]), status=st))
     return pd.DataFrame(rows)
+
+
+def naics2017_to_2022(path=None) -> pd.DataFrame:
+    """Statistics Canada's NAICS 2017 V3.0 -> 2022 V1.0 correspondence (changed codes only).
+    Use it to recode 2017-coded data (e.g. ODBus, older IOIC tables) before NAICS-level work."""
+    f = path or DATA / "statcan_naics2017v3_to_2022v1.csv"
+    d = pd.read_csv(f, dtype=str, encoding="utf-8-sig")
+    return d.rename(columns={d.columns[0]: "naics2017", d.columns[3]: "naics2022", d.columns[2]: "change"})[
+        ["naics2017", "naics2022", "change"]]
 
 
 def ioic_to_naics_prefix(ioic: str) -> str:

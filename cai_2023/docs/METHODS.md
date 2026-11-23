@@ -319,17 +319,29 @@ by industry, or lagged value added (`supply_mass.csv`).
   * **Canada.** The home shares come from StatCan's IPT (`home_share_stats`: own-province share of
     each sector's shipments, mean and sd across provinces), so no cross-country transfer is
     needed. r_home must follow the same definition on Canadian geography:
-    - **exact** (`--boundaries`, `geography.toroj_r_home`): StatCan's 2021 Census boundary
-      file for provinces and territories, **cartographic** version, Shapefile, English
-      (`lpr_000b21a_e.zip`), downloaded from the 2021 Census boundary files page
-      (www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21:
-      Type "Cartographic", Format "ArcGIS (.shp)", "Provinces/territories"). Pass the .zip
-      itself. The cartographic file follows coastlines, so sea neighbours (PE–NS, PE–NB) are
-      measured to the coast, as you chose. It is in EPSG:3347, the projection the code uses, and
-      is keyed by `PRUID`. For each province and each neighbour, the straight line from the
-      capital toward the neighbour's capital is intersected with the province's own boundary,
-      and all capital-to-border distances are averaged (pooled). Pure-numpy shapefile reader and
-      EPSG:3347 projection included. Per-pair distances are written to `r_home_pairs.csv`.
+    - **exact** (`--boundaries lpr_000b21a_e.zip`, `geography.toroj_r_home`): StatCan's 2021
+      cartographic boundary file for provinces and territories (EPSG:3347, keyed by `PRUID`).
+      Checks on your file: its `.prj` parameters match the projection code exactly, and all 13
+      capitals fall inside their own polygons. For each region and each neighbour, the straight
+      line from the capital toward the neighbour's capital is followed to the region's border.
+    - **Coastlines.** The cartographic file follows shorelines, so the literal "first crossing
+      of the region's own boundary" is the water's edge for coastal capitals: Quebec City →
+      NB 0.5 km (St Lawrence), Victoria → YT 0.7 km, Toronto → QC 17 km, St John's → QC
+      14.5 km. That gives 201 km (13 regions) or 117 km (10 provinces). Torój's NUTS-3 regions
+      are mostly landlocked, so his definition never meets this case. **Default rule
+      (`rule="median"`):** the border is where the line enters *another* region's land; if it
+      crosses water first, the border is placed at the midpoint of the water gap (median-line /
+      equidistance principle for maritime boundaries). Land borders are unaffected.
+      `rule="first_exit"` keeps the literal version.
+    - **Result (median rule): r_home = 438 km over all 13 regions (34 region–neighbour pairs; the
+      SDM includes the territories), 320 km over the 10 provinces.** Per-pair distances are in
+      `docs/canada_r_home_pairs_2021cbf.csv`, e.g. Charlottetown → NS 28 km (mid-strait),
+      Toronto → MB 1,379 km, Victoria → YT 1,438 km, Iqaluit → NT 1,599 km. Quebec City → NL is
+      185 km because the line passes through New Brunswick's northwest corner first; it counts,
+      since Torój measures to "the region's border".
+    - The approximation used before the boundary file (half the capital-to-capital distance)
+      gave 535 / 343 km. Individual pairs were off by up to a factor of 5 (MB → NU: 1,145 vs
+      231 km).
     - **approximation** (no boundary file): the border is assumed half-way between the two
       capitals. This is how the earlier figure of ~530 km arose: all 13 regions, with long
       territorial pairs (MB–NU 1,145 km, NT–NU 1,131 km, BC–NT 828 km). On the 10 provinces it
@@ -439,7 +451,16 @@ The 50 ICIO 2025 industries and the ISIC Rev.4 divisions and groups they cover a
 `C17_18`, `D` and `01`, `17T18`, `35`, `97T98`).
 
 ### 7.2 NAICS → ICIO
-Two tables, used in this order:
+Statistics Canada files used (all shipped in `gravity_irio/data/`):
+`statcan_naics2022_v1_isic4.csv` (NAICS 2022 V1.0 → ISIC Rev.4, 921 classes),
+`statcan_naics2017_v3_isic4.csv` (NAICS 2017 V3.0 → ISIC Rev.4, 927 classes; Latin-1, with a
+title line above the header, which the loader handles), and
+`statcan_naics2017v3_to_2022v1.csv` (NAICS 2017 → 2022 correspondence, 677 changed codes; used
+by `naics2017_to_2022` and the version check below).
+
+Lookup order for a 6-digit code: official NAICS 2022 table, then official NAICS 2017 table
+(`data/naics2017_to_icio2025_official.csv`, same construction), then the bridge. Shorter codes
+use the bridge. Details of the tables:
 1. **Official** (`data/naics2022_to_icio2025_official.csv`), derived from Statistics Canada's
    *NAICS Canada 2022 Version 1.0 → ISIC Rev. 4* concordance (the file you supplied, shipped as
    `data/statcan_naics2022_v1_isic4.csv`): 921 NAICS classes, 1,750 links. Each ISIC code (e.g.
@@ -474,10 +495,20 @@ broadcasting/content (516) codes. All 30 were corrected from the official links:
 * photofinishing 81292 → M;
 * 513 and 516 → J58T60.
 Result: **0 disagreements, 0 missing**. The 39 secondary agreements are cases where the bridge
-picks the main activity and the link count does not (listed above). NAICS 2017 vs 2022: the
-renumbered parts (retail 44-45 → 455–459, information 511/515 → 513/516, libraries 51912 →
-51921, 5415 detail) map to the same ICIO industries in both versions, so mixing versions
-(ODBus, IOIC codes) is safe at the ICIO level.
+picks the main activity and the link count does not (listed above).
+
+**NAICS 2017 V3.0.** The bridge, unchanged, agrees with all 927 classes of the official 2017
+concordance (886 primary, 41 secondary, 0 disagreements); this is a regression test.
+
+**Mixing versions (tested, not assumed).** 831 6-digit codes exist in both versions, and all
+map to the same ICIO industry, so no code means different things in 2017 and 2022. Of the 303
+6-digit 2017 → 2022 links in StatCan's correspondence, **3 change ICIO industry**: news
+syndicates 519110 and internet publishing/broadcasting 519130 (2017: J62_63, IT and
+information services) become 516212/516219 media streaming and content providers (2022:
+J58T60). This is a genuine reclassification in NAICS 2022. The 2017 and 2022 codes are
+different, so a version-free lookup stays unambiguous; data coded in 2017 keep the 2017
+treatment unless you recode them with `naics2017_to_2022()` first. (My earlier statement that
+mixing is "safe" without exception was too strong.)
 
 **Size-weighted official mapping** (optional). `industry_concordance(class_weights=...)` maps each
 IOIC aggregate with the official primary links of the 6-digit classes it contains, weighted by
@@ -514,7 +545,7 @@ Canada-wide user shares and rescaled to each province's import total.
 
 ---
 
-## 9. Validation (`pytest`: 39 tests, synthetic data with known parameters, plus your ODBus rows)
+## 9. Validation (`pytest`: 44 tests, synthetic data with known parameters, plus your ODBus rows)
 * PPML and OLS-HDFE recover parameters; OLS-HDFE equals the dummy-variable regression.
 * Cai eq. (9) recovers θ, border and language coefficients in cross-section and panel;
   calibration reproduces the true matrix (STPE = 0); a too-steep θ gives DTPE > 0.
@@ -535,20 +566,34 @@ Canada-wide user shares and rescaled to each province's import total.
 
 ---
 
-## 10. Open points and what I need from you
-1. **Boundary file**: download `lpr_000b21a_e.zip` (6.4) and run `spatial_irio.py --boundaries
-   lpr_000b21a_e.zip`. The exact Torój radius and per-pair distances are written to
-   `r_home_pairs.csv`.
-2. **Indicators for data-poor regions** (6.5): which of the listed indicators you can get for
-   those regions.
-3. **CN1/CN2, MX1/MX2**: functional splits per the OECD (3.3). Geographic distances can be added
-   if you have a geographic version.
-4. **ODBus**: run `load_odbus` on the full file and check `attrs["naics_source"]` to decide how
-   fine a NAICS level is credible.
-5. **Shape bounds** (a_min = 0.01, a_max = 10) for the Torój prior are my choice.
-6. **ODBus coverage**: prefer BR CSD counts for within-province geography.
-7. **Class sizes** for the size-weighted concordance (7.2): optional; Business Register
-   employment by 6-digit NAICS.
+## 10. What is left for you to do
+Everything below needs your data or a decision; the code for each step is in place and tested.
+
+**Data to assemble (tidy CSVs, layouts in `canada_io.py`, `spatial_irio.py`, `canada_elasticities.py`):**
+1. **OECD ICIO 2025 + CEPII** (you have these) → run `estimation.py` (step 1a).
+2. **StatCan interprovincial trade flows** (12-10-0101 or 12-10-0088, all years) → `ipt_flows.csv`.
+3. **Provincial SUTs** (36-10-0478): use by commodity × user (`provincial_use.csv`),
+   international imports (`international_imports.csv`), national supply table
+   (`supply_national.csv`; for `make_concordances.py`), domestic supply by province (only for the
+   provincial-tables-only route), final use by category, and exports by province.
+4. **ODBus** CSV as downloaded (`odbus.csv`); optionally Business Register counts by CSD with
+   CSD centroids, and an employment benchmark by province × sector (LFS 14-10-0023 / SEPH
+   14-10-0202).
+5. **For the SDM**: provincial value added by industry (36-10-0402), national symmetric IO
+   table (domestic), the boundary file (you now have it: keep `lpr_000b21a_e.zip` locally, it is
+   too large for GitHub's 100 MB limit and is git-ignored), and province distances (from the
+   ODBus/BR distance step or CES population distances).
+
+**Decisions:**
+6. **Indicators for data-poor regions** (6.5): which of the listed indicators you can get.
+7. **Border rule for r_home**: median line (default, 438 km) or literal first exit (201 km);
+   the `r_home_x0.5`/`x2.0` sensitivity runs bracket both.
+8. **Shape bounds** for the Torój prior (a_min = 0.01, a_max = 10; my choice).
+9. **CN1/CN2, MX1/MX2**: kept as functional splits aggregated to CHN/MEX (OECD documentation).
+
+**Run order:** `estimation.py` → `canada_elasticities.py` → `make_concordances.py` →
+`canada_disaggregation.py` (with `--schulte-draws`) → `spatial_irio.py --prior toroj
+--boundaries lpr_000b21a_e.zip --sensitivity`.
 
 ---
 

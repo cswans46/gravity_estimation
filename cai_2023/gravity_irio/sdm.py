@@ -732,7 +732,7 @@ CANADA_NEIGHBOURS = {
     "NU": ["NT", "MB"]}
 
 
-def canada_r_home(provinces=None, polygons=None, return_pairs: bool = False):
+def canada_r_home(provinces=None, polygons=None, return_pairs: bool = False, rule: str = "median"):
     """Torój's within-region radius for Canadian provinces/territories (km).
 
     Torój (2024, Sect. 3): the average of all distances from each regional capital to its own
@@ -749,7 +749,7 @@ def canada_r_home(provinces=None, polygons=None, return_pairs: bool = False):
     provs = provinces or list(CANADA_CAPITALS)
     if polygons is not None:
         from .geography import toroj_r_home
-        r, rows = toroj_r_home(polygons, CANADA_CAPITALS, CANADA_NEIGHBOURS, provs)
+        r, rows = toroj_r_home(polygons, CANADA_CAPITALS, CANADA_NEIGHBOURS, provs, rule=rule)
         return (r, rows) if return_pairs else r
     rows = []
     for p in provs:
