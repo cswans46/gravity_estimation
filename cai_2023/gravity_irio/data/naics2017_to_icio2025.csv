@@ -1,0 +1,97 @@
+naics_prefix,icio2025,isic_rev4,note
+111,A01,011-016,Crop production
+112,A01,014,Animal production
+1125,A03,032,Aquaculture
+113,A02,021-022,Forestry and logging
+114,A03,031,Fishing
+1142,A01,017,Hunting and trapping
+1151,A01,016,Support activities for crop production
+1152,A01,016,Support activities for animal production
+1153,A02,024,Support activities for forestry
+211,B06,06,Oil and gas extraction
+2121,B05,05,Coal mining
+2122,B07,07,Metal ore mining
+2123,B08,08,Non-metallic mineral mining and quarrying
+213,B09,09,Support activities for mining and oil and gas extraction
+2211,D,351,Electric power generation transmission and distribution
+2212,D,352,Natural gas distribution
+2213,E,36-37,Water sewage and other systems
+23,F,41-43,Construction
+311,C10T12,10,Food manufacturing
+312,C10T12,11-12,Beverage and tobacco product manufacturing
+313,C13T15,13,Textile mills
+314,C13T15,13,Textile product mills
+315,C13T15,14,Clothing manufacturing
+316,C13T15,15,Leather and allied product manufacturing
+321,C16,16,Wood product manufacturing
+322,C17_18,17,Paper manufacturing
+323,C17_18,18,Printing and related support activities
+324,C19,19,Petroleum and coal product manufacturing
+325,C20,20,Chemical manufacturing
+3254,C21,21,Pharmaceutical and medicine manufacturing
+326,C22,22,Plastics and rubber products manufacturing
+327,C23,23,Non-metallic mineral product manufacturing
+3311,C24A,241,Iron and steel mills and ferro-alloy manufacturing
+3312,C24A,241,Steel product manufacturing from purchased steel
+3313,C24B,242,Alumina and aluminum production and processing
+3314,C24B,242,Non-ferrous metal (except aluminum) production and processing
+33151,C24A,2431,Ferrous metal foundries
+33152,C24B,2432,Non-ferrous metal foundries
+332,C25,25,Fabricated metal product manufacturing
+333,C28,28,Machinery manufacturing
+334,C26,26,Computer and electronic product manufacturing
+335,C27,27,Electrical equipment appliance and component manufacturing
+3361,C29,291,Motor vehicle manufacturing
+3362,C29,292,Motor vehicle body and trailer manufacturing
+3363,C29,293,Motor vehicle parts manufacturing
+3364,C302T309,303,Aerospace product and parts manufacturing
+3365,C302T309,302,Railroad rolling stock manufacturing
+3366,C301,301,Ship and boat building
+3369,C302T309,309,Other transportation equipment manufacturing
+337,C31T33,31,Furniture and related product manufacturing
+339,C31T33,32,Miscellaneous manufacturing
+41,G,46,Wholesale trade
+44,G,47,Retail trade
+45,G,47,Retail trade
+481,H51,51,Air transportation
+482,H49,491-492,Rail transportation
+483,H50,50,Water transportation
+484,H49,4923,Truck transportation
+485,H49,4921-4922,Transit and ground passenger transportation
+486,H49,493,Pipeline transportation
+4871,H49,4922,Scenic and sightseeing transportation land
+4872,H50,5011,Scenic and sightseeing transportation water
+4879,H51,5110,Scenic and sightseeing transportation other
+488,H52,52,Support activities for transportation
+491,H53,531,Postal service
+492,H53,532,Couriers and messengers
+493,H52,521,Warehousing and storage
+511,J58T60,58,Publishing industries (except internet)
+512,J58T60,59,Motion picture and sound recording industries
+515,J58T60,60,Broadcasting (except internet)
+517,J61,61,Telecommunications
+518,J62_63,631,Data processing hosting and related services
+519,J62_63,639,Other information services
+51912,R,9101,Libraries and archives
+52,K,64-66,Finance and insurance
+531,L,68,Real estate
+532,N,77,Rental and leasing services
+533,N,774,Lessors of non-financial intangible assets
+54,M,69-75,Professional scientific and technical services
+5415,J62_63,62,Computer systems design and related services
+55,M,701,Management of companies and enterprises
+561,N,78-82,Administrative and support services
+5617,N,81,Services to buildings and dwellings
+562,E,38-39,Waste management and remediation services
+61,P,85,Educational services
+62,Q,86-88,Health care and social assistance
+71,R,90-93,Arts entertainment and recreation
+72,I,55-56,Accommodation and food services
+8111,G,452,Automotive repair and maintenance
+8112,S,951,Electronic and precision equipment repair (part ISIC 3313)
+8113,C31T33,331,Commercial and industrial machinery repair and maintenance
+8114,S,952,Personal and household goods repair
+812,S,96,Personal and laundry services
+813,S,94,Religious grant-making civic and professional organizations
+814,T,97,Private households
+91,O,84,Public administration
