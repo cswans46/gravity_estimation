@@ -111,3 +111,35 @@ def prepare_ICIO_data(data, include_final_demand: bool = True):
                           coords={d: coords[d] for d in ("year", "industry", "destination")}),
         "z": xr.DataArray(s["z"], dims=dims, coords=coords),
     }
+
+
+# OECD ICIO 2025 functional splits (NOT geographic): CN1 = China excl. processing exports,
+# CN2 = China processing exports, MX1 = Mexico excl. global manufacturing, MX2 = Mexico
+# global manufacturing (OECD 2026, ICIO 2025 documentation annex, Table 2).
+SPLIT_PARENTS = {"CN1": "CHN", "CN2": "CHN", "MX1": "MEX", "MX2": "MEX"}
+
+
+def aggregate_regions(Z5, FD4, X3, countries, mapping=SPLIT_PARENTS):
+    """Sum regions into parents (rows and columns), e.g. CN1+CN2 -> CHN, MX1+MX2 -> MEX.
+
+    If the parent already exists in ``countries`` *and* the split codes too, the parent's
+    own rows/columns are checked: if they are non-zero the table would double count, so a
+    ValueError is raised (choose one representation); if they are zero they are merged.
+    Returns (Z5, FD4, X3, new_countries).
+    """
+    countries = list(countries)
+    new = list(dict.fromkeys(mapping.get(c, c) for c in countries))
+    for c in countries:
+        p = mapping.get(c)
+        if p is not None and p in countries:
+            pi = countries.index(p)
+            if np.abs(Z5[:, pi]).sum() + np.abs(Z5[:, :, :, pi]).sum() > 0:
+                raise ValueError(f"both {p} and its split {c} carry flows; aggregation would double count")
+    G = np.zeros((len(new), len(countries)))
+    for n, c in enumerate(countries):
+        G[new.index(mapping.get(c, c)), n] = 1.0
+    Z5n = np.einsum("ai,tikjm->takjm", G, Z5, optimize=True)
+    Z5n = np.einsum("bj,takjm->takbm", G, Z5n, optimize=True)
+    FD4n = np.einsum("bj,takj->takb", G, np.einsum("ai,tikj->takj", G, FD4, optimize=True), optimize=True)
+    X3n = np.einsum("ai,tik->tak", G, X3, optimize=True)
+    return Z5n, FD4n, X3n, new

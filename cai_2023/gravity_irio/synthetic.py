@@ -91,3 +91,38 @@ def synthetic_canada(R=5, J=3, U=4, seed=0, delta_ju=None):
     T = Z.sum(axis=3)
     U_dom = Z.sum(axis=0)
     return dict(Z=Z, T=T, Udom=U_dom, dist=dist, delta=delta)
+
+
+def synthetic_locations(R=4, K=3, n_per=300, seed=0):
+    """Business points whose sector locations differ within provinces (for distance tests)."""
+    import pandas as pd
+    rng = np.random.default_rng(seed)
+    provs = ["NL", "PE", "NS", "NB", "QC", "ON", "MB", "SK", "AB", "BC"][:R]
+    centers = np.column_stack([rng.uniform(44, 55, R), np.linspace(-120, -60, R)])
+    rows = []
+    for r, p in enumerate(provs):
+        for k in range(K):
+            off = rng.normal(0, 1.5, 2)  # each sector clusters in a different part of the province
+            lat = centers[r, 0] + off[0] + rng.normal(0, 0.5, n_per)
+            lon = centers[r, 1] + off[1] + rng.normal(0, 0.8, n_per)
+            emp = rng.lognormal(1.5, 1.0, n_per)
+            emp[rng.uniform(size=n_per) < 0.4] = np.nan  # missing employees as in ODBus
+            rows.append(pd.DataFrame({"prov": p, "sector": f"k{k}", "naics": "", "lat": lat, "lon": lon,
+                                      "employees": emp}))
+    return pd.concat(rows, ignore_index=True), provs
+
+
+def synthetic_ipt(R=8, K=3, T=6, seed=0, delta=None, border=-1.0, noise=0.1):
+    """IPT-like T[i,k,b,t] from Cai's eq. (9) structure with a provincial border effect."""
+    rng = np.random.default_rng(seed)
+    xy = rng.uniform(0, 4000, (R, 2))
+    d = np.hypot(*(xy[:, None] - xy[None]).transpose(2, 0, 1))
+    np.fill_diagonal(d, rng.uniform(80, 300, R))
+    delta = rng.uniform(0.6, 1.6, K) if delta is None else np.asarray(delta, float)
+    Tm = np.zeros((R, K, R, T))
+    for k in range(K):
+        for t in range(T):
+            a = rng.lognormal(0, 1, R); b = rng.lognormal(0, 1, R)
+            mu = a[:, None] * b[None, :] * d ** (-delta[k]) * np.exp(border * (1 - np.eye(R)))
+            Tm[:, k, :, t] = mu * np.exp(noise * rng.standard_normal((R, R)))
+    return Tm, d, delta

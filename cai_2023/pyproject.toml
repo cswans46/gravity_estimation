@@ -23,6 +23,9 @@ dependencies = [
 [tool.setuptools]
 packages = ["gravity_irio"]
 
+[tool.setuptools.package-data]
+gravity_irio = ["data/*.csv"]
+
 [project.optional-dependencies]
 dev = [
     "pytest",

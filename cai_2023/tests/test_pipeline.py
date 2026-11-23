@@ -126,7 +126,8 @@ def test_sdm_incremental_determinant_exact():
     m = SpatialIRIO(data)
     phi = m.initial_phi()
     st = m._init_state(phi)
-    new = phi[1] + np.array([0.4, -0.3])
+    new = phi[1].copy()
+    new[:2] += np.array([0.4, -0.3])
     dl, payload = m._propose_sector(st, 1, new)
     p2 = phi.copy(); p2[1] = new
     assert np.isclose(dl, m.log_post(p2) - m.log_post(phi), atol=1e-8)
@@ -136,7 +137,7 @@ def test_sdm_incremental_determinant_exact():
 
 def test_sdm_recovers_weights_and_flows_consistent():
     data, tr = synthetic_sdm(S=3, R=8, T=5, seed=1)
-    m = SpatialIRIO(data)
+    m = SpatialIRIO(data, supply_exponent="fixed1")
     mode = m.fit_mode(sweeps=8)
     for s in range(3):
         Wt = weight_matrix(tr["dist"], tr["shape"][s], tr["scale"][s], m.mshare[0, s])
@@ -160,7 +161,7 @@ def test_priors_from_gravity_and_shares():
     shape, scale = fit_decay_to_power_law(1.2, tr["dist"])
     assert shape > 0 and scale > 0
     pr = prior_from_gravity([1.0, 1.5], tr["dist"])
-    assert pr.mu_logscale.shape == (2,)
+    assert pr.mu_c.shape == (2,)
     W = weight_matrix(tr["dist"], 1.5, 200.0, None, 0.0)
     sh, sc, loss = fit_decay_to_shares(W, tr["dist"], None, 0.0)
     assert np.abs(weight_matrix(tr["dist"], sh, sc, None, 0.0) - W).max() < 1e-3

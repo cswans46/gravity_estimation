@@ -12,6 +12,12 @@ international_imports.csv   province, commodity, value               (optional)
 province_distances.csv      origin, destination, km                   (diag = internal dist.)
 concordance_supply.csv      commodity, icio_industry, weight
 concordance_user.csv        user, icio_user, weight                   (icio_user may be 'FD')
+supply_domestic.csv         province, commodity, value                (only for
+                            --trade-source provincial-tables: domestic shipments to Canada)
+
+The two concordance files can be generated with ``gravity_irio.concordance``:
+industry_concordance(IOIC codes) for users and commodity_concordance(supply table, IOIC codes)
+for commodities (see docs/METHODS.md Sect. 7).
 """
 from __future__ import annotations
 

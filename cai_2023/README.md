@@ -1,48 +1,53 @@
-# Gravity and spatial-econometric estimation of interregional I–O flows
+# 4-D interregional–intersectoral flows for Canada: Cai (2023) gravity and Torój spatial Durbin IRIO
 
-This project extends Cai (2023) to the OECD ICIO (85 regions, 28 years, 50 industries). It
-applies the resulting distance elasticities to split Canadian interprovincial flows by
-demanding sector. As a separate routine, it includes Torój's Bayesian spatial Durbin IRIO
-model with gamma distance decay.
+* Exact Cai (2023) gravity, eq. (9), on the OECD ICIO 2025 (50 industries, panel 1995–2022),
+  by sector and by supplier × user pair.
+* Cai's specification inside Canada, using StatCan interprovincial flows and ODBus /
+  Business Register activity-weighted distances (NAICS × province elasticities).
+* Gravity-RAS split of interprovincial flows by demanding sector, Z[i, j, b, u], compared with
+  import proportionality, Fréchet bounds and the Schulte et al. (2021) envelope.
+* A separate routine: Torój (2024) Bayesian spatial Durbin IRIO (1 − gamma CDF decay,
+  inverse-Wishart covariance, Torój prior), with the 2016 supply exponent and sensitivities.
 
-Full methodology, formulas and open questions: **[docs/METHODS.md](docs/METHODS.md)**.
+**Full methodology, per-paper 4-D constructions, Canadian recipes and open points:
+[docs/METHODS.md](docs/METHODS.md).**
 
-## Install
+## Install and test
 ```bash
-pip install -e .[dev]      # numpy, pandas, scipy, pyreadr, xarray, xlrd, joblib
-pytest                     # 15 tests on synthetic data with known parameters
+pip install -e .[dev]
+pytest            # 33 tests on synthetic data with known parameters
 ```
 
 ## Run
 ```bash
-# 1. Distance elasticities from the ICIO (delta_k and delta_{k,m})
-python estimation.py --data-dir "D:/Models/OECD Research" --cepii-dir . --n-jobs 4
-
-# 2. Canadian Z[i, j, b, u]: gravity-RAS vs import proportionality
+python estimation.py --data-dir "D:/Models/OECD Research" --cepii-dir .        # 1a ICIO (Cai)
+python estimation.py ... --sample eu27 --year 2009                               # Cai's own design
+python canada_elasticities.py --canada-dir data/canada --slope-by origin         # 1b IPT + ODBus
+python make_concordances.py --canada-dir data/canada                             # SUT -> ICIO
 python canada_disaggregation.py --canada-dir data/canada \
-       --elasticities results/elasticities_pair_filled.csv
-
-# 3. Bayesian spatial Durbin IRIO (separate routine)
-python spatial_irio.py --sdm-dir data/canada_sdm --prior gravity --chains 4 --iter 4000
-
-# Steps 2 and 3 also run on synthetic data:
-python canada_disaggregation.py --demo
-python spatial_irio.py --demo
+       --delta-source ipt --distances user-specific --schulte-draws 200         # 2  Z[i,j,b,u]
+python canada_disaggregation.py ... --trade-source provincial-tables             # 2  without IPT
+python spatial_irio.py --sdm-dir data/canada_sdm --prior toroj --sensitivity     # 3  SDM
+# demos on synthetic data:
+python canada_disaggregation.py --demo --schulte-draws 50
+python spatial_irio.py --demo --sensitivity
 ```
-Input file layouts are described in the docstrings of `gravity_irio/canada_io.py` and
-`spatial_irio.py`.
 
 ## Layout
 ```
 gravity_irio/
-  ppml.py          PPML with high-dimensional FE (exact two-way solve, ppmlhdfe-style IRLS)
-  icio.py          ICIO preparation (Cai normalisation; supplier x user flows)
-  cepii.py         CEPII distances/controls -> ICIO codes (CN1/CN2, MX1/MX2, ROW handled)
-  elasticities.py  panel delta_k, delta_{k,m}, filling/shrinkage
-  ras.py           RAS / doubly constrained gravity
-  disaggregate.py  Canadian 4-D split: gravity-RAS and IPA
-  distances.py     CES population-weighted distances (distwces analogue)
-  sdm.py           Torój spatial IRIO: gamma-decay W, posterior, MCMC, flows
-  synthetic.py     known-parameter data generators
-  canada_io.py     tidy-CSV loaders
+  cai.py               Cai (2023) eq. (9) OLS-FE, calibration, STPE/DTPE, EU27 sample
+  ppml.py              PPML-HDFE (exact two-way FE projection)
+  icio.py              ICIO preparation; CN1/CN2, MX1/MX2 aggregation
+  cepii.py             CEPII GeoDist alignment
+  elasticities.py      PPML panel elasticities (robustness)
+  concordance.py       ICIO 2025 industries, NAICS->ICIO bridge, IOIC/SUPC mapping
+  data/naics2017_to_icio2025.csv
+  business_locations.py ODBus/BR -> weights -> grid -> sector-pair CES distances
+  canada_gravity.py    Cai spec on StatCan interprovincial flows (NAICS x province)
+  disaggregate.py      gravity-RAS 4-D split, IPA, Cai provincial calibration, Fréchet, Schulte
+  sdm.py               Torój spatial IRIO (prior, sampler, flows, 3-margin RAS)
+  sdm_sensitivity.py   sensitivity scenarios
+  final_demand.py      regional final demand from provincial SUTs / category keys
+  distances.py, ras.py, canada_io.py, synthetic.py
 ```

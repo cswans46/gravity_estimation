@@ -149,3 +149,7 @@ __MACOSX
 cai_2023/results/
 cai_2023/data/
 *.npy
+
+# Shipped concordance tables
+!cai_2023/gravity_irio/data/*.csv
+!cai_2023/tests/fixtures/*.csv
