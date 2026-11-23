@@ -1,88 +1,48 @@
-# ICIO gravity estimation
+# Gravity and spatial-econometric estimation of interregional I–O flows
 
-This project estimates industry-specific bilateral distance elasticities using the OECD
-Inter-Country Input-Output (ICIO) framework, following the empirical strategy in
-Mattia Cai (2023), *A calibrated gravity model of interregional trade*.
+This project extends Cai (2023) to the OECD ICIO (85 regions, 28 years, 50 industries). It
+applies the resulting distance elasticities to split Canadian interprovincial flows by
+demanding sector. As a separate routine, it includes Torój's Bayesian spatial Durbin IRIO
+model with gamma distance decay.
 
-The objective is to estimate elasticities from international and domestic country-level
-flows, independently of the Canadian provincial input-output tables to which the
-elasticities may later be applied.
+Full methodology, formulas and open questions: **[docs/METHODS.md](docs/METHODS.md)**.
 
-## Current implementation status
-
-The pipeline is designed for the 1995–2022 panel and 50 ICIO industries. It constructs
-bilateral sales by supplying industry from intermediate and final demand, merges CEPII
-geography, reads the local RTA/tariff Stata file, and estimates sector-specific OLS and
-PPML specifications. **The first local run is a required data-validation step:** the
-OECD RData object layouts and the Stata variable schema cannot be verified from this
-repository alone. The pipeline writes schema reports and stops with actionable errors
-rather than silently guessing variable mappings.
-
-## Setup
-
-From the repository root:
-
+## Install
 ```bash
-cd cai_2023
-python -m venv .venv
-# Windows:
-.venv\\Scripts\\activate
-python -m pip install -e ".[dev]"
-copy config.example.yaml config.yaml
+pip install -e .[dev]      # numpy, pandas, scipy, pyreadr, xarray, xlrd, joblib
+pytest                     # 15 tests on synthetic data with known parameters
 ```
 
-Edit `config.yaml` to point to your local ICIO, CEPII, and Stata files. Raw data are
-not committed to Git. The default paths reflect the current project setup but can be
-changed without editing Python source.
-
-## First run: inspect data
-
+## Run
 ```bash
-python inspect_trade_agreements.py --config config.yaml
-python run_estimation.py --config config.yaml --inspect-only
+# 1. Distance elasticities from the ICIO (delta_k and delta_{k,m})
+python estimation.py --data-dir "D:/Models/OECD Research" --cepii-dir . --n-jobs 4
+
+# 2. Canadian Z[i, j, b, u]: gravity-RAS vs import proportionality
+python canada_disaggregation.py --canada-dir data/canada \
+       --elasticities results/elasticities_pair_filled.csv
+
+# 3. Bayesian spatial Durbin IRIO (separate routine)
+python spatial_irio.py --sdm-dir data/canada_sdm --prior gravity --chains 4 --iter 4000
+
+# Steps 2 and 3 also run on synthetic data:
+python canada_disaggregation.py --demo
+python spatial_irio.py --demo
 ```
+Input file layouts are described in the docstrings of `gravity_irio/canada_io.py` and
+`spatial_irio.py`.
 
-The Stata inspection command reads metadata first and writes a variable/schema report.
-It does not load the full file into memory. Configure the origin, destination, year,
-RTA, and tariff columns in `config.yaml` using the report. The loader then reads only
-the selected columns in chunks and aggregates to country-pair-year.
-
-The ICIO inspect-only run records object types, dimensions, labels, and candidate
-country/industry parsing. Confirm these against the OECD release documentation before
-running estimation.
-
-## Estimate
-
-```bash
-python run_estimation.py --config config.yaml
+## Layout
 ```
-
-Outputs are written to the configured output directory:
-
-- `bilateral_industry_flows.parquet`: bilateral intermediate + final sales by source industry.
-- `estimation_panel.parquet`: estimation panel with CEPII and agreement/tariff controls.
-- `estimates_ols.csv`, `estimates_ppml.csv`: industry-specific coefficients and diagnostics.
-- `sample_diagnostics.csv`: missingness, zero-flow, and merge coverage diagnostics.
-- `run_metadata.json`: configuration, package versions, sample, and run timestamp.
-- `logs/estimation.log`: processing and estimation log.
-
-Parquet output requires `pyarrow` (included in the project dependencies).
-
-## Important methodological notes
-
-1. For origin country (i), destination country (j), supplying industry (k), year (t),
-   bilateral sales are the sum of all intermediate uses and final uses in destination (j).
-2. Destination absorption is total purchases of supplying-industry output (k) by
-   destination (j), summed over origins.
-3. The Cai normalized outcome is (z_{ijkt}=F_{ijkt}/(Y_{ikt}E_{jkt})).
-4. OLS estimates (log z) on log distance, border, language, RTA, and tariff controls,
-   with origin-industry-year and destination-industry-year fixed effects. Zero flows
-   cannot enter log OLS.
-5. PPML is an extension that estimates (F) in levels with (log(YE)) as an offset.
-   It retains zero bilateral flows and uses the same fixed-effect structure.
-6. Distance is time-invariant. Country-pair fixed effects are therefore not included in
-   the main specification because they would absorb distance.
-7. The agreement file's actual schema and coverage must be checked before the RTA/tariff
-   regressors can be considered validated. No variable mapping is presumed.
-
-See [docs/methodology.md](docs/methodology.md) for equations, choices, and limitations.
+gravity_irio/
+  ppml.py          PPML with high-dimensional FE (exact two-way solve, ppmlhdfe-style IRLS)
+  icio.py          ICIO preparation (Cai normalisation; supplier x user flows)
+  cepii.py         CEPII distances/controls -> ICIO codes (CN1/CN2, MX1/MX2, ROW handled)
+  elasticities.py  panel delta_k, delta_{k,m}, filling/shrinkage
+  ras.py           RAS / doubly constrained gravity
+  disaggregate.py  Canadian 4-D split: gravity-RAS and IPA
+  distances.py     CES population-weighted distances (distwces analogue)
+  sdm.py           Torój spatial IRIO: gamma-decay W, posterior, MCMC, flows
+  synthetic.py     known-parameter data generators
+  canada_io.py     tidy-CSV loaders
+```

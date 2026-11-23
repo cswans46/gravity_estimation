@@ -30,8 +30,7 @@ def main():
     target = out / "trade_agreement_schema.json"
     target.write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(json.dumps(report, indent=2))
-    print(f"
-Schema report written to: {target}")
+    print(f"Schema report written to: {target}")
 
 
 if __name__ == "__main__":

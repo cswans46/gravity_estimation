@@ -27,15 +27,13 @@ cepii:
   language_variable: "comlang_off"
 
 agreements:
-  # Variable names are deliberately configurable: the DTA schema is inspected first.
-  origin_variable: null
-  destination_variable: null
-  year_variable: null
-  industry_variable: null  # set when RTA/tariff observations are industry-specific
-  rta_variable: null
+  origin_variable: "exporter"
+  destination_variable: "importer"
+  year_variable: "year"
+  industry_variable: null
+  rta_variable: "rta"
   tariff_variable: null
-  # If the Stata file is agreement-level rather than pair-year-level, set the
-  # agreement indicator and tariff aggregation rules after inspecting its schema.
+
   rta_aggregation: "max"
   tariff_aggregation: "mean"
   chunk_size: 500000
@@ -49,13 +47,14 @@ estimation:
   include_border: true
   include_language: true
   include_rta: true
-  include_tariff: true
+  include_tariff: false
   cluster: "pair"
   min_observations: 30
   # Restrict to years after the trade-agreement data begins only if explicitly desired.
   require_complete_agreement_data: false
   # Keep zero flows for PPML; OLS necessarily uses positive flows only.
   keep_domestic_flows: true
+  
 
 logging:
   level: "INFO"

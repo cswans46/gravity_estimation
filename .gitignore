@@ -16,8 +16,9 @@ __pycache__/
 *.pdf
 *.docx
 *.md
-!cai_2023/README.md
-!cai_2023/docs/*.md
+!README.md
+!**/README.md
+!**/docs/*.md
 *.dta
 # Superfluous .tex files
 *.aux
@@ -143,3 +144,8 @@ __MACOSX
 **/*.db
 **/*.db-shm
 **/*.db-wal
+
+# Pipeline outputs
+cai_2023/results/
+cai_2023/data/
+*.npy

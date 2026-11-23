@@ -1,42 +1,44 @@
+
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cai-icio-gravity"
-version = "0.2.0"
-description = "Industry-level gravity estimation using OECD ICIO data"
-requires-python = ">=3.11"
+name = "cai-2023"
+version = "0.1.0"
+description = "Replication of Cai et al. (2023)"
+requires-python = ">=3.10"
 dependencies = [
-    "numpy>=1.24",
-    "pandas>=2.0",
-    "xarray>=2023.1",
-    "pyreadr>=0.5",
-    "pyreadstat>=1.2",
-    "scipy>=1.10",
-    "statsmodels>=0.14",
-    "pyfixest>=0.70",
-    "pyarrow>=14",
-    "openpyxl>=3.1",
-    "xlrd>=2.0",
-    "PyYAML>=6.0",
-    "tqdm>=4.65",
+    "numpy",
+    "pandas",
+    "scipy",
+    "xarray",
+    "pyreadr",
+    "xlrd",       # reading CEPII dist_cepii.xls
+    "openpyxl",
+    "joblib",
+    "matplotlib",
 ]
 
-[project.optional-dependencies]
-dev = ["pytest>=7.4", "black>=23.0", "ruff>=0.3", "ipykernel"]
+[tool.setuptools]
+packages = ["gravity_irio"]
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["gravity_icio*"]
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "black",
+    "ruff",
+    "ipykernel",
+]
 
 [tool.black]
 line-length = 120
-target-version = ["py311"]
+target-version = ["py310"]
 
 [tool.ruff]
 line-length = 120
-target-version = "py311"
+target-version = "py310"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
