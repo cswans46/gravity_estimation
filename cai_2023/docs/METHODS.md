@@ -319,8 +319,14 @@ by industry, or lagged value added (`supply_mass.csv`).
   * **Canada.** The home shares come from StatCan's IPT (`home_share_stats`: own-province share of
     each sector's shipments, mean and sd across provinces), so no cross-country transfer is
     needed. r_home must follow the same definition on Canadian geography:
-    - **exact** (`--boundaries`, `geography.toroj_r_home`): StatCan's provincial boundary
-      shapefile (EPSG:3347). For each province and each neighbour, the straight line from the
+    - **exact** (`--boundaries`, `geography.toroj_r_home`): StatCan's 2021 Census boundary
+      file for provinces and territories, **cartographic** version, Shapefile, English
+      (`lpr_000b21a_e.zip`), downloaded from the 2021 Census boundary files page
+      (www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21:
+      Type "Cartographic", Format "ArcGIS (.shp)", "Provinces/territories"). Pass the .zip
+      itself. The cartographic file follows coastlines, so sea neighbours (PE–NS, PE–NB) are
+      measured to the coast, as you chose. It is in EPSG:3347, the projection the code uses, and
+      is keyed by `PRUID`. For each province and each neighbour, the straight line from the
       capital toward the neighbour's capital is intersected with the province's own boundary,
       and all capital-to-border distances are averaged (pooled). Pure-numpy shapefile reader and
       EPSG:3347 projection included. Per-pair distances are written to `r_home_pairs.csv`.
@@ -330,8 +336,8 @@ by industry, or lagged value added (`supply_mass.csv`).
       is ~343 km (~401 km without Prince Edward Island's sea links to NS and NB). The
       approximation overstates the radius for capitals deep inside their province and
       understates it for capitals near a border. **Use the exact version for real runs.**
-    - Neighbour lists are hard-coded (`CANADA_NEIGHBOURS`, land borders plus PE's sea links,
-      which you may want to drop). `geography.neighbours_from_polygons` derives land adjacency
+    - Neighbour lists are hard-coded (`CANADA_NEIGHBOURS`): land borders plus PE's sea links
+      (kept, per your decision). The territories are included (the SDM runs on all 13 regions). `geography.neighbours_from_polygons` derives land adjacency
       from the shapefile instead.
     - Because Canadian provinces are far larger than NUTS-3 regions, r_home is hundreds of km,
       not tens. The prior is a mapping from "share of the decay profile within r_home" to the
@@ -353,8 +359,23 @@ national final output x − Σ_j z. Eq. (3) then aggregates to the national iden
 
 **Regions without StatCan-type data ("other regions").** Chosen method: *learn the allocation
 keys on Canada and transfer them* (`fit_fd_keys_on_canada` → `FDKeyModel.apply`).
-1. Use only indicators that exist for the target regions: population, GDP, household income,
-   employment, and sector output or value added (the last can be commodity-specific, (T,S,R)).
+1. Use only indicators that exist for the target regions. The candidate set, with the
+   Canadian source used for training:
+
+   | Indicator | Shape | Canada (training) | Typically explains |
+   |---|---|---|---|
+   | population | (T,R) | StatCan population estimates by province | households, NPISH, government |
+   | GDP / total value added | (T,R) | 36-10-0402-01 (sum over industries) | GFCF, government |
+   | household disposable income (or HFCE if published) | (T,R) | provincial household accounts | households |
+   | employment, total | (T,R) | LFS 14-10-0023-01 | households, GFCF |
+   | value added (or output) by sector | (T,S,R) | 36-10-0402-01 | exports (by origin), inventories |
+   | employment by sector | (T,S,R) | LFS 14-10-0023-01 / SEPH 14-10-0202-01 | exports if VA by sector is missing |
+   | public-sector employment / spending | (T,R) | LFS (public administration) / provincial public accounts | government |
+   | investment (GFCF) total | (T,R) | provincial economic accounts | GFCF |
+
+   **Minimum:** population, GDP and value added (or employment) by sector. With only population,
+   the method reduces to Torój's population key for every category, and the report shows how
+   much accuracy that costs on Canada.
 2. For each final-demand category (households, NPISH, government, GFCF, inventories, exports),
    fit, on Canadian provinces and years,
    FU[t,i,r] ~ exp(FE_{t,i} + Σ_k b_k ln indicator_k[t,i,r]) by PPML. The (t,i) fixed effects
@@ -418,16 +439,52 @@ The 50 ICIO 2025 industries and the ISIC Rev.4 divisions and groups they cover a
 `C17_18`, `D` and `01`, `17T18`, `35`, `97T98`).
 
 ### 7.2 NAICS → ICIO
-* `data/naics2017_to_icio2025.csv` is a **hand-built bridge** at the NAICS 2- to 5-digit level
-  (longest-prefix match; every ICIO industry is covered). It handles the known cross-cutting
-  cases: pharmaceuticals 3254 → C21; foundries 33151/33152 → C24A/C24B; computer systems design
-  5415 → J62_63; libraries 51912 → R; automotive repair 8111 → G; machinery repair 8113 → C31T33;
-  aquaculture 1125 → A03; water/sewage 2213 and waste 562 → E; and others.
-* The official NAICS 2017 V3.0 → ISIC Rev.4 concordance is an HTML table on StatCan's site.
-  Network access from my workspace is blocked, so I could not download it. Save it as CSV and
-  run `validate_bridge(load_official_naics_isic(path))` to list every NAICS class where the
-  bridge disagrees. `official_naics_to_icio_weights` gives the official mapping directly (equal
-  split over linked ISIC classes, because the table has no value weights).
+Two tables, used in this order:
+1. **Official** (`data/naics2022_to_icio2025_official.csv`), derived from Statistics Canada's
+   *NAICS Canada 2022 Version 1.0 → ISIC Rev. 4* concordance (the file you supplied, shipped as
+   `data/statcan_naics2022_v1_isic4.csv`): 921 NAICS classes, 1,750 links. Each ISIC code (e.g.
+   `A0111*`, `A011X`) goes to its ICIO 2025 industry. One link (919110 international public
+   administration → ISIC 99, extraterritorial) has no ICIO industry and is dropped. Per class:
+   `weight` = share of its ISIC links in each ICIO industry; `primary` = the ICIO industry the class
+   is assigned to. Primary rule: the bridge's choice if it is one of the official links, otherwise
+   the ICIO industry with the most links (ties: first listed). The rule matters because the
+   concordance has no size information and its secondary (`*`) links are usually minor
+   activities. By link count, pharmaceuticals 325410 would be 50% C20 (diagnostic reagents),
+   petrochemicals 325110 50% C19 (lubricants), and aerospace 336410 50% C28 (aircraft pumps).
+2. **Bridge** (`data/naics_to_icio2025_bridge.csv`), hand-built at 2- to 6-digit prefixes,
+   covering NAICS 2017 and 2022 codes (longest-prefix match). Used for codes that are not
+   6-digit NAICS 2022 classes: 2017-only codes (511, 515, 51912…), and the prefixes embedded in
+   IOIC industry codes. A parent prefix keeps its own mapping; more specific exceptions (3254
+   inside 325) apply only to codes under them.
+
+**Validation against the official file** (`validate_bridge`; now a regression test). The first
+pass gave 852 classes agreeing with the official primary link, 39 agreeing with a secondary link,
+18 disagreements and 12 missing. The missing ones were NAICS 2022's new publishing (513) and
+broadcasting/content (516) codes. All 30 were corrected from the official links:
+* steam and air conditioning 22133 → D;
+* asphalt paving and roofing 32412 → C23;
+* rebar 332314 → C24A;
+* valves 33291 and bearings 332991 → C28;
+* industrial moulds 333511 and motor-vehicle stamping 336370 → C25;
+* blinds 337920 → C25; signs 339950 → C16 (equal links over five industries, first listed);
+* libraries/archives 51921 (2022 code) → R;
+* holding companies 551113 → K;
+* carpet cleaning 561740 → S;
+* artist and athlete agents 71141 → M;
+* photofinishing 81292 → M;
+* 513 and 516 → J58T60.
+Result: **0 disagreements, 0 missing**. The 39 secondary agreements are cases where the bridge
+picks the main activity and the link count does not (listed above). NAICS 2017 vs 2022: the
+renumbered parts (retail 44-45 → 455–459, information 511/515 → 513/516, libraries 51912 →
+51921, 5415 detail) map to the same ICIO industries in both versions, so mixing versions
+(ODBus, IOIC codes) is safe at the ICIO level.
+
+**Size-weighted official mapping** (optional). `industry_concordance(class_weights=...)` maps each
+IOIC aggregate with the official primary links of the 6-digit classes it contains, weighted by
+class size. A natural source is Business Register employment by 6-digit NAICS (sum of the
+`load_br_csd` weights by `naics`). Without sizes, the code uses the bridge rather than weighting
+classes equally: counting classes put refineries (`BS324000`) at 50% C23, because two small
+asphalt classes outnumber the refinery class.
 
 ### 7.3 SUT industries and commodities
 * IOIC industry codes embed a NAICS prefix (`BS111A00` → 111, `GS611100` → 6111, `NP813000` → 813).
@@ -479,24 +536,19 @@ Canada-wide user shares and rescaled to each province's import total.
 ---
 
 ## 10. Open points and what I need from you
-1. **CN1/CN2, MX1/MX2.** The OECD documentation describes them as processing / global-manufacturing
-   splits (Sect. 3.3), not sub-national regions. If you have a geographic version, send the
-   member provinces or states and I'll add sub-national distances (the CES code is ready).
-2. **ODBus.** Wired to the actual columns (4.1). Please run `load_odbus` on the full file and look
-   at `attrs["naics_source"]` and `n_no_sector`. They show how many records are coded from
-   providers, from `derived_NAICS`, from text, or not at all. That decides how fine a sector level
-   is credible (`naics2` is safe; `naics3`/`naics4` only where text learning covers most records).
-3. **Official NAICS → ISIC file.** Please download it (Sect. 7.2) so the bridge can be validated.
-4. **Provincial boundary shapefile** (StatCan boundary file, provinces/territories) for the exact
-   Torój radius (6.4). Also decide whether PE's sea links count as neighbours and whether the
-   territories are in the SDM.
-5. **Indicators for data-poor regions.** Tell me which indicators you will have for them, so the
-   Canadian key-learning (6.5) only considers those.
-6. **Shape bounds** (a_min = 0.01, a_max = 10) for the Torój prior are my choice; he computes them
-   numerically and does not report them.
-7. **ODBus coverage.** Distances use where businesses *appear* in open data. Benchmarking fixes
-   totals by province × sector but not the within-province geography. Prefer the BR CSD counts
-   for that, with ODBus for detail.
+1. **Boundary file**: download `lpr_000b21a_e.zip` (6.4) and run `spatial_irio.py --boundaries
+   lpr_000b21a_e.zip`. The exact Torój radius and per-pair distances are written to
+   `r_home_pairs.csv`.
+2. **Indicators for data-poor regions** (6.5): which of the listed indicators you can get for
+   those regions.
+3. **CN1/CN2, MX1/MX2**: functional splits per the OECD (3.3). Geographic distances can be added
+   if you have a geographic version.
+4. **ODBus**: run `load_odbus` on the full file and check `attrs["naics_source"]` to decide how
+   fine a NAICS level is credible.
+5. **Shape bounds** (a_min = 0.01, a_max = 10) for the Torój prior are my choice.
+6. **ODBus coverage**: prefer BR CSD counts for within-province geography.
+7. **Class sizes** for the size-weighted concordance (7.2): optional; Business Register
+   employment by 6-digit NAICS.
 
 ---
 

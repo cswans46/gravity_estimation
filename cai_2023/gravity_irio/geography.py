@@ -55,10 +55,23 @@ def lcc3347(lat, lon):
 def read_shapefile(shp_path, name_field="PRUID"):
     """Minimal ESRI shapefile reader for (Multi)Polygon layers (shape types 5, 15, 25).
 
+    ``shp_path`` may be the .shp file or the .zip that Statistics Canada distributes
+    (e.g. lpr_000b21a_e.zip, 2021 cartographic boundary file, provinces/territories).
     Returns {name: [ring arrays (n,2)]} in the file's coordinates; names from the .dbf.
     """
     shp = Path(shp_path)
-    data = shp.read_bytes()
+    if shp.suffix.lower() == ".zip":
+        import zipfile
+        with zipfile.ZipFile(shp) as z:
+            names = z.namelist()
+            sname = next(n for n in names if n.lower().endswith(".shp"))
+            dname = next(n for n in names if n.lower().endswith(".dbf"))
+            data, dbf = z.read(sname), z.read(dname)
+        return _parse_shp(data, _parse_dbf_field(dbf, name_field))
+    return _parse_shp(shp.read_bytes(), _read_dbf_field(shp.with_suffix(".dbf"), name_field))
+
+
+def _parse_shp(data, names):
     rings_by_rec = []
     pos = 100
     while pos < len(data):
@@ -76,7 +89,6 @@ def read_shapefile(shp_path, name_field="PRUID"):
         off = 44 + 4 * nparts
         pts = np.frombuffer(rec[off:off + 16 * npts], dtype="<f8").reshape(npts, 2)
         rings_by_rec.append([pts[parts[k]:parts[k + 1]].copy() for k in range(nparts)])
-    names = _read_dbf_field(shp.with_suffix(".dbf"), name_field)
     out = {}
     for nm, rings in zip(names, rings_by_rec):
         out.setdefault(nm, []).extend(rings)
@@ -84,7 +96,10 @@ def read_shapefile(shp_path, name_field="PRUID"):
 
 
 def _read_dbf_field(dbf_path, field):
-    b = Path(dbf_path).read_bytes()
+    return _parse_dbf_field(Path(dbf_path).read_bytes(), field)
+
+
+def _parse_dbf_field(b, field):
     nrec, hlen, rlen = struct.unpack("<IHH", b[4:12])
     fields, p, off = [], 32, 1
     while b[p] != 0x0D:

@@ -106,3 +106,36 @@ def test_fd_keys_learned_on_canada_recover_structure():
     assert m.keys["government"][0] == ["population"]
     assert m.keys["exports"][0] == ["va_sector"]
     assert m.report["chosen"].sum() == 3
+
+
+def test_bridge_consistent_with_official_naics2022_concordance():
+    from gravity_irio.concordance import DATA, load_official_naics_isic, validate_bridge, naics_to_icio
+    off = load_official_naics_isic(DATA / "statcan_naics2022_v1_isic4.csv")
+    assert off["naics"].nunique() == 921
+    v = validate_bridge(off)
+    assert (v["status"] == "disagree").sum() == 0 and (v["status"] == "missing").sum() == 0
+    # NAICS 2022 renumbering handled; 2017-only codes still map through the bridge
+    assert naics_to_icio("513110") == "J58T60" and naics_to_icio("519211") == "R"
+    assert naics_to_icio("456110") == "G" and naics_to_icio("511110") == "J58T60"
+    assert naics_to_icio("324121") == "C23" and naics_to_icio("324110") == "C19"
+
+
+def test_size_weighted_official_mapping():
+    from gravity_irio.concordance import ICIO2025, industry_concordance
+    ic = list(ICIO2025)
+    M = industry_concordance(["BS324000"], class_weights={"324110": 900, "324121": 40, "324122": 30, "324190": 30})
+    assert np.isclose(M[0, ic.index("C23")], 0.07) and np.isclose(M[0].sum(), 1)
+    M0 = industry_concordance(["BS324000"])
+    assert M0[0, ic.index("C19")] == 1.0
+
+
+def test_shapefile_reader_accepts_zip(tmp_path):
+    import zipfile
+    shp = tmp_path / "lpr.shp"
+    _write_square_shapefile(shp, {"35": (0.0, 0.0, 10.0)})
+    z = tmp_path / "lpr_000b21a_e.zip"
+    with zipfile.ZipFile(z, "w") as f:
+        f.write(shp, "lpr_000b21a_e.shp")
+        f.write(shp.with_suffix(".dbf"), "lpr_000b21a_e.dbf")
+    polys = read_shapefile(z, "PRUID")
+    assert list(polys) == ["35"] and polys["35"][0].shape == (5, 2)

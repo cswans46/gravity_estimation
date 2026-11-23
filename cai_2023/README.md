@@ -42,7 +42,7 @@ gravity_irio/
   cepii.py             CEPII GeoDist alignment
   elasticities.py      PPML panel elasticities (robustness)
   concordance.py       ICIO 2025 industries, NAICS->ICIO bridge, IOIC/SUPC mapping
-  data/naics2017_to_icio2025.csv
+  data/naics_to_icio2025_bridge.csv
   business_locations.py ODBus/BR -> weights -> grid -> sector-pair CES distances
   canada_gravity.py    Cai spec on StatCan interprovincial flows (NAICS x province)
   disaggregate.py      gravity-RAS 4-D split, IPA, Cai provincial calibration, Fréchet, Schulte

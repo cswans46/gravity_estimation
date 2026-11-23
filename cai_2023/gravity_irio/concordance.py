@@ -7,11 +7,12 @@ Chain:  SUPC commodity --(national supply table)--> IOIC industry --(code struct
   ISIC Rev.4 divisions/groups they cover. ``canonical_icio`` accepts both the letter style
   (``A01``, ``C10T12``, ``C24A``, ``D``) and the numeric style of the R objects (``01``,
   ``10T12``, ``24A``, ``35``, ``97T98``).
-* ``data/naics2017_to_icio2025.csv`` is a hand-built NAICS -> ICIO bridge at the 2- to
-  5-digit level (longest-prefix match). It was written from the NAICS 2017 and ISIC Rev.4
-  structures; ``validate_bridge`` checks it against Statistics Canada's official
-  NAICS 2017 V3.0 -> ISIC Rev.4 concordance (download from
-  https://www.statcan.gc.ca/en/subjects/standard/naics/2017/v3/concordance-rev4).
+* ``data/naics2022_to_icio2025_official.csv``: derived from Statistics Canada's official
+  NAICS Canada 2022 V1.0 -> ISIC Rev.4 concordance (921 classes, 1,750 links); used first for
+  6-digit codes and, averaged, for shorter codes.
+* ``data/naics_to_icio2025_bridge.csv``: hand-built NAICS -> ICIO bridge (2- to 6-digit
+  prefixes, NAICS 2017 and 2022 codes, longest-prefix match), fixed against the official
+  concordance (``validate_bridge``: 0 disagreements); used for codes absent from NAICS 2022.
 * IOIC codes (``BS111A00``, ``NP813000``, ``GS611100`` ...) embed a NAICS prefix up to the
   first letter; ``ioic_to_naics_prefix`` extracts it. Letter-suffixed aggregates are handled
   by the prefix (e.g. ``BS111A00`` -> ``111``). An official IOIC-NAICS table can override.
@@ -119,36 +120,80 @@ def isic_to_icio(isic: str) -> str:
 
 
 def load_bridge(path=None) -> pd.DataFrame:
-    return pd.read_csv(path or DATA / "naics2017_to_icio2025.csv", dtype=str)
+    return pd.read_csv(path or DATA / "naics_to_icio2025_bridge.csv", dtype=str)
 
 
 def naics_candidates(code, bridge: pd.DataFrame | None = None) -> list:
-    """ICIO codes a NAICS code (any length) can map to.
+    """ICIO codes a NAICS code (any length) can map to, using the bridge.
 
-    Longest-prefix match first (a 6-digit code gets exactly one answer). If the code is
-    *shorter* than the bridge entries (e.g. '21' or an IOIC aggregate), all ICIO codes of
-    bridge entries that extend it are returned.
+    * If a bridge entry is a prefix of the code (or equal to it), the longest such entry wins
+      and that single ICIO code is returned. More specific bridge entries *below* the code
+      (exceptions such as 3254 pharmaceuticals inside 325 chemicals) do not make the code
+      ambiguous: they cover minor activities, and size-weighted splits are available through
+      ``industry_concordance(class_weights=...)``.
+    * If the code is shorter than every matching entry (e.g. '21', or an IOIC aggregate like
+      'BS4A0000' -> '4'), all ICIO codes of the entries that extend it are returned.
     """
     b = load_bridge() if bridge is None else bridge
     s = re.sub(r"[^0-9]", "", str(code))
     if not s:
         return []
-    m = b[[s.startswith(p) for p in b["naics_prefix"]]]
-    longest = None
-    if not m.empty:
-        longest = m.loc[m["naics_prefix"].str.len().idxmax()]
-    ext = b[[p.startswith(s) and len(p) > len(s) for p in b["naics_prefix"]]]
-    if longest is not None and (ext.empty or len(longest["naics_prefix"]) >= len(s)):
-        # children of s that map elsewhere (e.g. 3254 inside 325) make s itself ambiguous
-        cands = [longest["icio2025"]] + list(ext["icio2025"])
-        return list(dict.fromkeys(cands))
+    pref = b[[s.startswith(p) for p in b["naics_prefix"]]]
+    if not pref.empty:
+        return [pref.loc[pref["naics_prefix"].str.len().idxmax(), "icio2025"]]
+    ext = b[[p.startswith(s) for p in b["naics_prefix"]]]
     return list(dict.fromkeys(ext["icio2025"]))
 
 
+_OFFICIAL = None
+
+
+def load_official_table() -> pd.DataFrame:
+    """NAICS 2022 (6-digit) -> ICIO 2025 links derived from Statistics Canada's official
+    NAICS Canada 2022 V1.0 -> ISIC Rev.4 concordance (data/naics2022_to_icio2025_official.csv;
+    weight = share of the class's ISIC links in that ICIO industry; primary = main ICIO
+    industry, see METHODS 7.2)."""
+    global _OFFICIAL
+    if _OFFICIAL is None:
+        f = DATA / "naics2022_to_icio2025_official.csv"
+        _OFFICIAL = pd.read_csv(f, dtype={"naics2022": str}) if f.exists() else pd.DataFrame(
+            columns=["naics2022", "icio2025", "n_isic_links", "weight", "primary"])
+    return _OFFICIAL
+
+
+def naics_to_icio_weights(code, class_weights: dict, links: str = "primary") -> dict:
+    """{ICIO code: weight} for a NAICS code of any length, from the official concordance,
+    weighting the 6-digit NAICS 2022 classes it contains by ``class_weights`` (e.g. Business
+    Register employment by 6-digit NAICS; classes missing from the dict get 0).
+
+    links='primary': each class goes wholly to its primary ICIO industry (recommended);
+    links='all'    : each class is split over all its ISIC links equally (secondary, '*'
+                     links are usually minor activities, so this over-weights them).
+    Returns {} if no weighted class is found (callers then fall back to the bridge).
+    """
+    s = re.sub(r"[^0-9]", "", str(code))
+    off = load_official_table()
+    sub = off[off["naics2022"].str.startswith(s)] if s else off.iloc[0:0]
+    if links == "primary":
+        sub = sub[sub["primary"].astype(bool)].assign(weight=1.0)
+    if not len(sub):
+        return {}
+    cw = sub["naics2022"].map(lambda c: float(class_weights.get(c, 0.0)))
+    w = (sub["weight"] * cw).groupby(sub["icio2025"]).sum()
+    return (w[w > 0] / w.sum()).to_dict() if w.sum() > 0 else {}
+
+
 def naics_to_icio(code, bridge: pd.DataFrame | None = None) -> str | None:
-    """Unique ICIO code for a NAICS code, or None if unmatched / ambiguous."""
+    """Unique ICIO code for a NAICS code: the official primary link for 6-digit NAICS 2022
+    codes, otherwise the bridge (None if unmatched or ambiguous)."""
+    s = re.sub(r"[^0-9]", "", str(code))
+    if len(s) == 6:
+        off = load_official_table()
+        hit = off[(off["naics2022"] == s) & off["primary"].astype(bool)]
+        if len(hit):
+            return hit["icio2025"].iloc[0]
     c = naics_candidates(code, bridge)
-    return c[0] if len(c) == 1 else (c[0] if c and len(re.sub(r"[^0-9]", "", str(code))) >= 6 else None)
+    return c[0] if len(c) == 1 else None
 
 
 def load_official_naics_isic(path) -> pd.DataFrame:
@@ -157,34 +202,65 @@ def load_official_naics_isic(path) -> pd.DataFrame:
     Column names vary across releases; the first column containing 'NAICS' and 'Code' and
     the first containing 'ISIC' and 'Code' are used. '*' (partial) flags are kept in 'partial'.
     """
-    df = pd.read_csv(path, dtype=str, encoding_errors="replace")
+    df = pd.read_csv(path, dtype=str, encoding="utf-8-sig", encoding_errors="replace")
     ncol = next(c for c in df.columns if "NAICS" in c.upper() and "CODE" in c.upper())
     icol = next(c for c in df.columns if "ISIC" in c.upper() and "CODE" in c.upper())
-    out = pd.DataFrame({"naics": df[ncol].str.strip(), "isic": df[icol].str.strip()})
+    tcol = next((c for c in df.columns if "NAICS" in c.upper() and "TITLE" in c.upper()), None)
+    out = pd.DataFrame({"naics": df[ncol].str.strip(), "isic": df[icol].str.strip(),
+                        "title": df[tcol] if tcol else ""})
+    # ISIC codes look like 'A0111', 'A0111*' (partial link) or 'A011X' (aggregate of a group)
     out["partial"] = out["isic"].str.contains(r"\*", regex=True)
     out["isic_digits"] = out["isic"].str.replace(r"[^0-9]", "", regex=True)
-    out = out[out["isic_digits"].str.len() >= 2]
-    out["icio2025"] = out["isic_digits"].map(isic_to_icio)
-    return out
+    out = out[out["isic_digits"].str.len() >= 2].copy()
+
+    def safe(code):
+        try:
+            return isic_to_icio(code)
+        except KeyError:  # ISIC 99 (extraterritorial organisations) has no ICIO industry
+            return None
+    out["icio2025"] = out["isic_digits"].map(safe)
+    out.attrs["unmapped"] = out.loc[out["icio2025"].isna(), ["naics", "isic"]].values.tolist()
+    return out.dropna(subset=["icio2025"])
 
 
 def official_naics_to_icio_weights(off: pd.DataFrame) -> pd.DataFrame:
-    """NAICS 6-digit -> ICIO weights from the official table (equal split over the ISIC
-    classes a NAICS class links to; no value data are available to weight them)."""
+    """NAICS 6-digit -> ICIO weights from the official table.
+
+    The concordance has no value data, so a NAICS class is split equally over the ISIC links
+    it has ('n' = number of links into that ICIO industry). 'primary' marks the ICIO industry
+    with the most links (ties: the first listed, which StatCan lists for the main activity in
+    most cases). Partial links ('*') typically cover minor activities of the class.
+    """
+    off = off.reset_index(drop=True)
+    first = off.groupby("naics").head(1).set_index("naics")["icio2025"]
     g = off.groupby(["naics", "icio2025"]).size().rename("n").reset_index()
     g["weight"] = g["n"] / g.groupby("naics")["n"].transform("sum")
-    return g[["naics", "icio2025", "weight"]]
+    g["is_first"] = g["icio2025"] == g["naics"].map(first)
+    g = g.sort_values(["naics", "n", "is_first"], ascending=[True, False, False])
+    g["primary"] = ~g.duplicated("naics")
+    return g[["naics", "icio2025", "n", "weight", "primary"]].reset_index(drop=True)
 
 
 def validate_bridge(off: pd.DataFrame, bridge: pd.DataFrame | None = None) -> pd.DataFrame:
-    """Compare the hand-built bridge with the official concordance, NAICS class by class.
-    Returns rows where the bridge's ICIO code is not among the official ones."""
+    """Compare the bridge with the official concordance, NAICS class by class.
+
+    Returns one row per NAICS class with columns: bridge (ICIO code from the bridge), primary
+    (official primary ICIO code), all_official (all ICIO codes it links to), status in
+    {'agree_primary', 'agree_secondary' (bridge = a non-primary official link),
+    'disagree', 'missing' (bridge has no entry)}.
+    """
     w = official_naics_to_icio_weights(off)
     b = load_bridge() if bridge is None else bridge
-    w["bridge"] = [naics_to_icio(n, b) for n in w["naics"]]
-    agree = w.groupby("naics").apply(lambda g: g["bridge"].iloc[0] in set(g["icio2025"]))
-    bad = agree[~agree].index
-    return w[w["naics"].isin(bad)]
+    rows = []
+    for n, g in w.groupby("naics"):
+        br = naics_to_icio(n, b)
+        prim = g.loc[g["primary"], "icio2025"].iloc[0]
+        allo = list(g["icio2025"])
+        st = ("missing" if br is None else "agree_primary" if br == prim
+              else "agree_secondary" if br in allo else "disagree")
+        rows.append(dict(naics=n, bridge=br, primary=prim, all_official="|".join(allo),
+                         primary_weight=float(g.loc[g["primary"], "weight"].iloc[0]), status=st))
+    return pd.DataFrame(rows)
 
 
 def ioic_to_naics_prefix(ioic: str) -> str:
@@ -210,21 +286,34 @@ def ioic_to_icio(ioic: str, bridge=None, overrides: dict | None = None) -> list:
 
 
 def industry_concordance(ioic_codes, icio_codes=None, overrides=None, split_weights=None,
-                         report: list | None = None) -> np.ndarray:
+                         report: list | None = None, class_weights: dict | None = None) -> np.ndarray:
     """(n_ioic, n_icio) weights mapping SUT industries to ICIO 2025 industries (rows sum to 1).
 
-    Ambiguous IOIC aggregates (e.g. 'BS21E000' = mining except oil and gas -> B05/B07/B08)
-    are split with ``split_weights`` (dict ICIO code -> weight, e.g. Canada's ICIO gross
-    output by industry) or equally if None. Ambiguous codes are appended to ``report``.
+    Mapping, in order of preference:
+      1. ``overrides`` (exact, user-supplied);
+      2. ``class_weights`` given: the official NAICS 2022 concordance, with the 6-digit classes
+         inside the IOIC prefix weighted by those sizes (``naics_to_icio_weights``);
+      3. otherwise the bridge (6-digit codes: official primary link). IOIC aggregates spanning
+         several ICIO industries (e.g. 'BS21E000' = mining except oil and gas) are split with
+         ``split_weights`` (ICIO code -> weight, e.g. ICIO Canada gross output) or equally.
+    Ambiguous codes are appended to ``report``.
     """
     icio = list(ICIO2025) if icio_codes is None else [canonical_icio(c) for c in icio_codes]
     b = load_bridge()
     M = np.zeros((len(ioic_codes), len(icio)))
     for n, c in enumerate(ioic_codes):
-        cands = [x for x in ioic_to_icio(c, b, overrides) if x in icio]
-        w = np.array([1.0 if split_weights is None else float(split_weights.get(x, 0.0)) for x in cands])
-        if w.sum() <= 0:
-            w = np.ones(len(cands))
+        base = {}
+        if class_weights is not None and not (overrides and c in overrides):
+            base = {k: v for k, v in naics_to_icio_weights(ioic_to_naics_prefix(c), class_weights).items()
+                    if k in icio}
+        if base:
+            cands = list(base)
+            w = np.array([base[x] for x in cands])
+        else:
+            cands = [x for x in ioic_to_icio(c, b, overrides) if x in icio]
+            w = np.array([1.0 if split_weights is None else float(split_weights.get(x, 0.0)) for x in cands])
+            if w.sum() <= 0:
+                w = np.ones(len(cands))
         for x, wx in zip(cands, w / w.sum()):
             M[n, icio.index(x)] = wx
         if len(cands) > 1 and report is not None:
