@@ -1,0 +1,27 @@
+idx,business_name,alt_business_name,business_sector,business_subsector,business_description,business_id_no,licence_number,licence_type,derived_NAICS,source_NAICS_primary,source_NAICS_secondary,NAICS_descr,NAICS_descr2,latitude,longitude,full_address,postal_code,unit,street_no,street_name,street_direction,street_type,city,prov_terr,total_no_employees,status,provider,geo_source,CSDUID,CSDNAME,PRUID
+8bcde34e196bcbb440a2,Healthconnect Pharmacy,..,Community Pharmacy,..,..,..,..,..,44,..,..,..,..,46.09593,-64.87099,"10 Desbrisay Avenue, Unit 2, Moncton Nb",..,Unit 2,10,Desbrisay Avenue,..,..,Moncton,NB,..,..,City of Moncton,Source,1307022,Moncton,13
+87cfdddd858f54356f04,Innomar Pharmacy Inc.,..,Community Pharmacy,..,..,..,..,..,44,..,..,..,..,46.10593,-64.80623,"100 Arden Street, Suite 309, Moncton Nb",..,Suite 309,100,Arden Street,..,..,Moncton,NB,..,..,City of Moncton,Source,1307022,Moncton,13
+263962f164fdbeba64a0,Express Scripts Canada Pharmacy,..,Community Pharmacy,..,..,..,..,..,44,..,..,..,..,46.10351,-64.70646,"1040 Champlain Street, Dieppe Nb",..,..,1040,Champlain Street,..,..,Moncton,NB,..,..,City of Moncton,Source,1307045,Dieppe,13
+f0ea2ef9552a6ade5430,Tomavo,..,Limited Groceries,..,..,..,..,..,..,..,..,..,..,46.10473,-64.81922,1063 Mountain Rd,..,..,1063,Mountain Rd,..,..,Moncton,NB,..,..,City of Moncton,Source,1307022,Moncton,13
+7f7958a5f4736f09aa22,Cameron Street Clinic,..,Community Pharmacy,..,..,..,..,..,44,..,..,..,..,46.08854,-64.78849,107 Cameron Street P.O. Box 792,..,..,107,Cameron Street,..,..,Moncton,NB,..,..,City of Moncton,Source,1307022,Moncton,13
+00a6c5155831532385b5,Sobeys Pharmacy # 736,..,Community Pharmacy,..,..,..,..,..,44,..,..,..,..,46.04933,-64.79456,"1160 Findlay Boulevard, Dieppe Nb",..,..,1160,Findlay Boulevard,..,..,Moncton,NB,..,..,City of Moncton,Source,1306020,Riverview,13
+4f7243d1e7f761de3033,Sobey's,..,General Groceries,..,..,..,..,..,..,..,..,..,..,46.04939,-64.79474,1160 Findlay Blvd,..,..,1160,Findlay Blvd,..,..,Moncton,NB,..,..,City of Moncton,Source,1306020,Riverview,13
+4e453d5aed197d140ed5,The Medicine Shoppe Pharmacy,..,Community Pharmacy,..,..,..,..,..,44,..,..,..,..,46.10301,-64.76212,"120 Shediac Road , Moncton Nb",..,..,120,Shediac Road,..,..,Moncton,NB,..,..,City of Moncton,Source,1307022,Moncton,13
+86560a06c3a8174ef35c,Moncton Market,..,Limited Groceries,..,..,..,..,..,..,..,..,..,..,46.0873,-64.77847,120 Westmorland St,..,..,120,Westmorland St,..,..,Moncton,NB,..,..,City of Moncton,Source,1307022,Moncton,13
+b3677bc4972cbe7f63a6,Taste of Homeland,..,Limited Groceries,..,..,..,..,..,..,..,..,..,..,46.10797,-64.82567,1201 Mountain Rd,..,..,1201,Mountain Rd,..,..,Moncton,NB,..,..,City of Moncton,Source,1307022,Moncton,13
+x0,Synthetic 0,..,Community Pharmacy,..,..,..,..,..,44,446110,..,..,..,43.65,-79.38,..,..,..,..,..,..,..,..,ON,12,..,Synthetic,..,3520005,..,35
+x1,Synthetic 1,..,Community Pharmacy,..,..,..,..,..,44,446110,..,..,..,43.66,-79.39,..,..,..,..,..,..,..,..,ON,8,..,Synthetic,..,3520005,..,35
+x2,Synthetic 2,..,Community Pharmacy,..,..,..,..,..,44,446110,..,..,..,43.67,-79.39999999999999,..,..,..,..,..,..,..,..,ON,..,..,Synthetic,..,3520005,..,35
+x3,Synthetic 3,..,Community Pharmacy,..,..,..,..,..,44,446110,..,..,..,43.68,-79.41,..,..,..,..,..,..,..,..,ON,20,..,Synthetic,..,3520005,..,35
+x4,Synthetic 4,..,Community Pharmacy,..,..,..,..,..,44,446110,..,..,..,43.69,-79.42,..,..,..,..,..,..,..,..,ON,5,..,Synthetic,..,3520005,..,35
+x5,Synthetic 5,..,Limited Groceries,..,..,..,..,..,44,445120,..,..,..,43.699999999999996,-79.42999999999999,..,..,..,..,..,..,..,..,ON,3,..,Synthetic,..,3520005,..,35
+x6,Synthetic 6,..,Limited Groceries,..,..,..,..,..,44,445120,..,..,..,43.71,-79.44,..,..,..,..,..,..,..,..,ON,4,..,Synthetic,..,3520005,..,35
+x7,Synthetic 7,..,Limited Groceries,..,..,..,..,..,44,445120,..,..,..,43.72,-79.44999999999999,..,..,..,..,..,..,..,..,ON,2,..,Synthetic,..,3520005,..,35
+x8,Synthetic 8,..,Limited Groceries,..,..,..,..,..,44,445120,..,..,..,43.73,-79.46,..,..,..,..,..,..,..,..,ON,6,..,Synthetic,..,3520005,..,35
+x9,Synthetic 9,..,Limited Groceries,..,..,..,..,..,44,445110,..,..,..,43.74,-79.47,..,..,..,..,..,..,..,..,ON,9,..,Synthetic,..,3520005,..,35
+x10,Synthetic 10,..,Limited Groceries,..,..,..,..,..,44,445120,..,..,..,43.75,-79.47999999999999,..,..,..,..,..,..,..,..,ON,..,..,Synthetic,..,3520005,..,35
+x11,Synthetic 11,..,Machine Shop,..,..,..,..,..,33,332710,..,..,..,43.76,-79.49,..,..,..,..,..,..,..,..,ON,40,..,Synthetic,..,3520005,..,35
+x12,Synthetic 12,..,Machine Shop,..,..,..,..,..,33,332710,..,..,..,43.769999999999996,-79.5,..,..,..,..,..,..,..,..,ON,25,..,Synthetic,..,3520005,..,35
+x13,Synthetic 13,..,Machine Shop,..,..,..,..,..,33,332710,..,..,..,43.78,-79.50999999999999,..,..,..,..,..,..,..,..,ON,30,..,Synthetic,..,3520005,..,35
+x14,Synthetic 14,..,Machine Shop,..,..,..,..,..,33,332710,..,..,..,43.79,-79.52,..,..,..,..,..,..,..,..,ON,15,..,Synthetic,..,3520005,..,35
+x15,Synthetic 15,..,Machine Shop,..,..,..,..,..,33,332710,..,..,..,43.8,-79.53,..,..,..,..,..,..,..,..,ON,..,..,Synthetic,..,3520005,..,35
